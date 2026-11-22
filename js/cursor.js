@@ -495,7 +495,7 @@ export class Cursor {
     return points;
   }
 
-  createPath(ctx) {
+    createPath(ctx) {
     const unit = gameGrid[sel.yCoord]?.[sel.xCoord]?.unit;
 
     if (!unit) return;
@@ -504,25 +504,90 @@ export class Cursor {
 
     if (points.length === 0) return;
 
-    ctx.beginPath();
+    // Arrow dimensions in world pixels (a tile is 40). Centred on the
+    // tile, so 30 / 14 leave an even 5 px / 13 px margin on each side.
+    const HEAD_W = 30;     // across the arrowhead
+    const HEAD_L = 20;     // from the base to the tip
+    const TAIL_W = 14;     // tail thickness
+    const OUTLINE = 2;     // dark border on every edge
 
-    ctx.moveTo(
-      sel.xCoord * TILE_SIZE + TILE_SIZE / 2,
-      sel.yCoord * TILE_SIZE + TILE_SIZE / 2
-    );
+    const half = TILE_SIZE / 2;
 
-    for (const point of points) {
-      ctx.lineTo(
-        point.x * TILE_SIZE + TILE_SIZE / 2,
-        point.y * TILE_SIZE + TILE_SIZE / 2
-      );
-    }
+    // Tile centres from the unit to the cursor.
+    const pts = [
+      { x: sel.xCoord * TILE_SIZE + half, y: sel.yCoord * TILE_SIZE + half },
+      ...points.map(p => ({
+        x: p.x * TILE_SIZE + half,
+        y: p.y * TILE_SIZE + half
+      }))
+    ];
 
-    ctx.strokeStyle = "cyan";
-    ctx.lineWidth = 3;
-    ctx.setLineDash([6, 6]);
+    const last = pts[pts.length - 1];
+    const prev = pts[pts.length - 2];
+
+    // Unit direction of the final step (paths only move along axes).
+    const dx = Math.sign(last.x - prev.x);
+    const dy = Math.sign(last.y - prev.y);
+
+    // The head is centred on the final tile: base HEAD_L/2 behind the
+    // tile centre, tip HEAD_L/2 ahead of it.
+    const base = { x: last.x - dx * HEAD_L / 2, y: last.y - dy * HEAD_L / 2 };
+    const tip = { x: last.x + dx * HEAD_L / 2, y: last.y + dy * HEAD_L / 2 };
+
+    // Perpendicular, for the head's two back corners.
+    const px = -dy;
+    const py = dx;
+
+    const left = { x: base.x + px * HEAD_W / 2, y: base.y + py * HEAD_W / 2 };
+    const right = { x: base.x - px * HEAD_W / 2, y: base.y - py * HEAD_W / 2 };
+
+    // The tail follows the path and stops at the head's base.
+    const tail = [...pts.slice(0, -1), base];
+
+    const tracePath = () => {
+      ctx.beginPath();
+      ctx.moveTo(tail[0].x, tail[0].y);
+      for (let i = 1; i < tail.length; i++) ctx.lineTo(tail[i].x, tail[i].y);
+    };
+
+    const traceHead = () => {
+      ctx.beginPath();
+      ctx.moveTo(left.x, left.y);
+      ctx.lineTo(tip.x, tip.y);
+      ctx.lineTo(right.x, right.y);
+      ctx.closePath();
+    };
+
+    ctx.save();
+    ctx.lineCap = "butt";
+    ctx.lineJoin = "miter";
+    ctx.miterLimit = 4;
+
+    // Pass 1: dark outline (drawn first, so the fill sits on top).
+    ctx.strokeStyle = "#0a2a5e";
+    ctx.fillStyle = "#0a2a5e";
+
+    tracePath();
+    ctx.lineWidth = TAIL_W + OUTLINE * 2;
     ctx.stroke();
-    ctx.setLineDash([]);
+
+    traceHead();
+    ctx.lineWidth = OUTLINE * 2;
+    ctx.fill();
+    ctx.stroke();
+
+    // Pass 2: the arrow itself.
+    ctx.strokeStyle = "#4fc3ff";
+    ctx.fillStyle = "#4fc3ff";
+
+    tracePath();
+    ctx.lineWidth = TAIL_W;
+    ctx.stroke();
+
+    traceHead();
+    ctx.fill();
+
+    ctx.restore();
   }
 }
 
