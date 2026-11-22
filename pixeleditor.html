@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixel Editor</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'">
+  <link rel="icon" href="data:,">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; display: flex; flex-direction: column;
+      background: #111; color: #eee; font: 13px Arial, sans-serif;
+    }
+    button, input { font: inherit; }
+    button {
+      padding: 5px 10px; cursor: pointer;
+      background: #2c3438; color: #eee; border: 1px solid #555;
+    }
+    button:hover { background: #3b464b; }
+    button.active { background: #52694e; border-color: #c6a75b; }
+
+    #toolbar {
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      padding: 6px 8px; background: #1b1f22; border-bottom: 1px solid #333;
+    }
+    #toolbar .sep { width: 1px; align-self: stretch; background: #444; margin: 0 2px; }
+    #toolbar input[type=number] { width: 60px; }
+    #readout {
+      padding: 4px 8px; background: #161a1c; border-bottom: 1px solid #333;
+      font: 13px monospace; min-height: 24px; white-space: pre;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+
+    #main { flex: 1; display: flex; min-height: 0; }
+    #stage { position: relative; flex: 1; min-width: 0; background: #222; }
+    #view { position: absolute; top: 0; left: 0; image-rendering: pixelated; }
+    #scroller { position: absolute; inset: 0; overflow: auto; cursor: crosshair; }
+    #scroller.paint { touch-action: none; }
+    #spacer { width: 1px; height: 1px; }
+
+    #panel {
+      width: 260px; padding: 8px; overflow-y: auto;
+      background: #1b1f22; border-left: 1px solid #333;
+    }
+    #panel h3 { margin: 10px 0 4px; font-size: 13px; color: #c6a75b; }
+    #panel h3:first-child { margin-top: 0; }
+    .row { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
+    .row label { width: 18px; }
+    .row input[type=number] { width: 58px; }
+    .row input[type=range] { flex: 1; min-width: 0; }
+    #hexIn { flex: 1; min-width: 0; font-family: monospace; }
+    #colorPicker { width: 44px; height: 30px; padding: 0; border: 1px solid #555; background: none; }
+    #swatchBox {
+      width: 100%; height: 36px; border: 1px solid #555; margin: 4px 0;
+      background: repeating-conic-gradient(#999 0% 25%, #666 0% 50%) 0 0 / 12px 12px;
+    }
+    #swatch { width: 100%; height: 100%; }
+    #hint { margin: 4px 0; font-size: 12px; color: #aaa; min-height: 30px; }
+    .swatches { display: flex; flex-wrap: wrap; gap: 2px; }
+    .swatches button { width: 20px; height: 20px; padding: 0; border: 1px solid #000; }
+    #status { color: #9fd49f; }
+
+    @media (max-width: 700px) {
+      #main { flex-direction: column; }
+      #panel { width: 100%; max-height: 40%; border-left: 0; border-top: 1px solid #333; }
+    }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <button id="openBtn">Open</button>
+    <button id="saveBtn">Save</button>
+    <button id="saveAsBtn">Save As</button>
+    <button id="mergeBtn" title="Add another PNG below or to the right of this sheet">Merge</button>
+    <span class="sep"></span>
+    <button id="modeSelect" class="active" title="V">Select</button>
+    <button id="modePaint" title="B">Paint</button>
+    <span class="sep"></span>
+    <button id="undoBtn" title="Ctrl+Z">Undo</button>
+    <button id="redoBtn" title="Ctrl+Y">Redo</button>
+    <span class="sep"></span>
+    <button id="zoomOut">-</button>
+    <span id="zoomLabel">8x</span>
+    <button id="zoomIn">+</button>
+    <button id="gridBtn" class="active" title="G">Grid</button>
+    <span class="sep"></span>
+    Go to
+    <input id="gotoX" type="number" min="0" placeholder="x">
+    <input id="gotoY" type="number" min="0" placeholder="y">
+    <button id="gotoBtn">Go</button>
+    <span class="sep"></span>
+    <span id="status"></span>
+    <input id="fileInput" type="file" accept="image/png" hidden>
+    <input id="mergeInput" type="file" accept="image/png" hidden>
+  </div>
+
+  <div id="readout">Open a PNG, or add ?src=./assets/yourfile.png to the address.</div>
+
+  <div id="main">
+    <div id="stage">
+      <canvas id="view"></canvas>
+      <div id="scroller"><div id="spacer"></div></div>
+    </div>
+
+    <div id="panel">
+      <h3>Color</h3>
+      <div id="hint">Select a pixel to edit it.</div>
+
+      <div class="row">
+        <input id="colorPicker" type="color" value="#ff0000">
+        <input id="hexIn" type="text" value="#ff0000" spellcheck="false"
+               title="#rgb, #rrggbb, #rrggbbaa, or r,g,b / r,g,b,a (alpha 0-255)">
+      </div>
+      <div id="swatchBox"><div id="swatch"></div></div>
+
+      <div class="row"><label>R</label><input id="rRange" type="range" min="0" max="255"><input id="rIn" type="number" min="0" max="255"></div>
+      <div class="row"><label>G</label><input id="gRange" type="range" min="0" max="255"><input id="gIn" type="number" min="0" max="255"></div>
+      <div class="row"><label>B</label><input id="bRange" type="range" min="0" max="255"><input id="bIn" type="number" min="0" max="255"></div>
+      <div class="row"><label>A</label><input id="aRange" type="range" min="0" max="255"><input id="aIn" type="number" min="0" max="255"></div>
+
+      <div class="row">
+        <button id="applyBtn" title="Write this color to the selected pixel">Apply</button>
+        <button id="copyBtn">Copy</button>
+        <button id="pasteBtn">Paste</button>
+      </div>
+
+      <h3>Recent</h3>
+      <div id="recent" class="swatches"></div>
+
+      <h3>Sheet colors</h3>
+      <div class="row"><button id="scanBtn">Scan sheet</button></div>
+      <div id="sheetColors" class="swatches"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/pixelEditor.js"></script>
+</body>
+</html>

@@ -1,0 +1,1809 @@
+/* ==========================================
+   BASE PAGE AND GAME AREA
+========================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 8px;
+  font-family: Arial, sans-serif;
+  background: var(--page-bg, #111);
+  color: var(--text-light, #fff);
+}
+
+#gameArea {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+#gameCanvas,
+canvas {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+}
+
+canvas {
+  border: 2px solid var(--border-strong, #000);
+  background: #f1f1f1;
+}
+
+
+/* ==========================================
+   CONTROLLER
+========================================== */
+
+.flex-container {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1fr);
+  gap: clamp(6px, 2vw, 18px);
+  width: 100%;
+  max-width: 800px;
+  min-height: 320px;
+  padding: clamp(8px, 2vw, 16px);
+  background: var(--controller-bg, DodgerBlue);
+  align-items: stretch;
+}
+
+.direction-controls,
+.action-controls,
+.turn-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  min-width: 0;
+  padding: clamp(6px, 1.5vw, 14px);
+  background: var(--controller-panel, #242424);
+}
+
+.direction-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(65px, 1fr));
+  gap: clamp(4px, 1vw, 10px);
+}
+
+.direction-controls > button:first-child {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.horizontal-controls {
+  display: contents;
+}
+
+.horizontal-controls button:first-child {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.horizontal-controls button:last-child {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.direction-controls > button:last-child {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+.direction-controls button {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 65px;
+}
+
+.action-controls {
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+}
+
+.action-controls button {
+  width: 100%;
+  min-height: 75px;
+  font-size: clamp(15px, 2.5vw, 21px);
+}
+
+.turn-controls {
+  flex-direction: column;
+  justify-content: space-around;
+  text-align: center;
+}
+
+.turn-controls p {
+  margin: 8px 0;
+  color: white;
+  font-size: clamp(17px, 3vw, 26px);
+}
+
+.turn-controls button {
+  width: 100%;
+  min-height: 75px;
+  font-size: clamp(14px, 2vw, 19px);
+}
+
+.flex-container button {
+  padding: 6px;
+  border: 2px solid var(--border-main, #aaa);
+  border-radius: 0;
+  background: var(--controller-button, #bb00bb);
+  color: var(--text-light, white);
+  font-size: clamp(14px, 2vw, 20px);
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.flex-container button:hover {
+  background: var(--accent-hover, #52694e);
+}
+
+
+/* ==========================================
+   SHARED MENU STYLES
+========================================== */
+
+#moveMenu,
+#unitMenu,
+#contextMenu {
+  display: none;
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  bottom: auto;
+  left: auto;
+  transform: none;
+  z-index: 1000;
+
+  width: max-content;
+  min-width: 150px;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100dvh - 20px);
+
+  padding: 8px;
+  overflow: auto;
+
+  background: var(--surface-bg, #eee);
+  color: var(--text-main, #222);
+  border: 2px solid var(--gold, #c6a75b);
+
+  text-align: center;
+  box-sizing: border-box;
+}
+
+#unitMenu {
+  z-index: 1001;
+  width: min(420px, calc(100vw - 20px));
+  padding: 14px;
+  border-width: 3px;
+}
+
+#contextMenu {
+  z-index: 2000;
+  width: 140px;
+  max-width: 40vw;
+  padding: 6px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+}
+
+#moveMenu h3,
+#unitMenu h3,
+#contextMenu h3 {
+  margin: 2px 0 8px;
+  color: var(--text-main, #222);
+  font-size: 15px;
+}
+
+#contextMenu h3 {
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+#moveMenu button,
+#unitMenu button,
+#contextMenu button {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  margin: 4px 0;
+  padding: 6px 10px;
+
+  background: var(--surface-raised, #ddd);
+  color: var(--text-main, #222);
+  border: 1px solid var(--border-main, #888);
+
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+#moveMenu button {
+  max-width: 100%;
+  padding: 10px 12px;
+  margin: 5px;
+  font-size: 16px;
+}
+
+#unitMenu button {
+  max-width: 100%;
+  margin: 5px;
+  padding: 12px 14px;
+  font-size: 16px;
+}
+/* ==========================================
+   COMPACT UNIT ACTION MENU
+========================================== */
+
+#unitMenu:has(#unitOptions[style*="display: block"]) {
+  width: min(240px, calc(100vw - 20px));
+  min-width: 150px;
+  padding: 8px;
+  border-width: 2px;
+}
+
+#unitMenu:has(#unitOptions[style*="display: block"]) h3 {
+  margin: 2px 0 6px;
+  font-size: 14px;
+}
+
+#unitMenu:has(#unitOptions[style*="display: block"]) button {
+  width: 100%;
+  min-height: 32px;
+  margin: 3px 0;
+  padding: 7px 9px;
+  font-size: 13px;
+}
+
+#contextMenu button {
+  min-height: 28px;
+  margin: 3px 0;
+  padding: 4px;
+  font-size: 11px;
+}
+
+#moveMenu button:hover,
+#unitMenu button:hover,
+#contextMenu button:hover {
+  background: var(--accent, #667d61);
+  color: var(--selection-text, #fff);
+}
+
+#moveMenu button.menu-option-selected,
+#unitMenu button.menu-option-selected,
+#contextMenu button.menu-option-selected {
+  outline: 1px solid var(--gold, #c6a75b);
+  outline-offset: 1px;
+  border-color: var(--gold, #c6a75b);
+  background: var(--selection-bg, #52694e);
+  color: var(--selection-text, #fff);
+  font-weight: bold;
+}
+
+
+/* ==========================================
+   ATTACK MENU AND COMBAT PREVIEW
+========================================== */
+
+#attackChoices,
+#attackOptions {
+  width: 100%;
+}
+
+#attackOptions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+#attackOptions button {
+  width: 100%;
+  min-height: 42px;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: clamp(14px, 3.5vw, 18px);
+}
+
+#attackOptions button.menu-option-selected {
+  border: 3px solid var(--gold);
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+#moveMenu:has(.combat-preview) {
+  width: min(94vw, 440px);
+}
+
+.combat-preview {
+  width: 100%;
+  padding: 4px;
+  color: var(--text-main, #222);
+  font-size: clamp(12px, 3vw, 15px);
+}
+
+.combat-preview-units {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.combat-preview-unit {
+  min-width: 0;
+  padding: 8px;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border-main, #777);
+  border-radius: 6px;
+  background: var(--surface-raised, #eee);
+}
+
+.combat-preview-unit h3 {
+  margin: 0 0 8px;
+  font-size: clamp(14px, 3.5vw, 18px);
+}
+
+.combat-preview-unit p {
+  margin: 5px 0;
+}
+
+.combat-preview-unit hr {
+  margin: 6px 0;
+}
+
+.combat-preview-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.combat-preview-actions button {
+  flex: 1;
+  min-height: 42px;
+  padding: 8px;
+  font-size: clamp(14px, 3.5vw, 17px);
+}
+
+.combat-preview-actions button.menu-option-selected {
+  border: 3px solid #ffdf55;
+  background: #245ca6;
+  color: white;
+  font-weight: bold;
+}
+
+
+/* ==========================================
+   UNIT INSPECTION AND STATS
+========================================== */
+
+#unitStats,
+#unitWeapons {
+  margin-top: 15px;
+  font-size: 14px;
+  text-align: left;
+}
+
+#unitDetailButtons {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+#unitDetailButtons button {
+  min-width: 0;
+  min-height: 32px;
+  font-size: 18px;
+}
+
+.unit-stats-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.unit-stats-header h3 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.unit-level {
+  white-space: nowrap;
+  font-size: 15px;
+}
+
+.unit-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 18px;
+  font-size: 14px;
+}
+
+.unit-stat-grid > div {
+  min-width: 0;
+  padding: 3px 0;
+  white-space: nowrap;
+}
+
+
+/* ==========================================
+   INVENTORY AND ITEM DETAILS
+========================================== */
+
+#unitMenu:has(#unitItems[style*="display: block"]) {
+  width: min(94vw, 440px);
+  max-width: calc(100vw - 20px);
+  max-height: calc(100dvh - 20px);
+}
+
+#unitItems {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto 1fr;
+  gap: 8px 12px;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+
+#unitItems .inventory-title {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.inventory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+#unitMenu .inventory-item {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 8px;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  text-align: left;
+}
+
+#unitItemDetails {
+  display: none;
+  min-width: 0;
+  padding: 8px;
+  overflow-wrap: anywhere;
+  border-left: 2px solid var(--border-main, #888);
+  font-size: 13px;
+  text-align: left;
+}
+
+#unitItemDetails h3 {
+  margin-top: 0;
+  font-size: 15px;
+}
+
+.item-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  overflow-wrap: anywhere;
+}
+
+#unitItemDetails button {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  font-size: 13px;
+}
+
+
+/* ==========================================
+   LEVEL-UP STATUS SCREEN
+========================================== */
+
+#unitMenu.level-up-screen {
+  width: min(94vw, 440px);
+  min-width: 0;
+  max-width: 94vw;
+  max-height: 90vh;
+  padding: 14px;
+  overflow: hidden;
+
+  border: 4px solid var(--gold);
+  border-radius: 8px;
+  background: var(--panel-bg);
+  color: var(--text-light);
+
+  text-align: center;
+  box-shadow: 0 0 0 3px var(--border-strong);
+}
+
+#unitMenu.level-up-screen #unitDetails {
+  display: block;
+  width: 100%;
+}
+
+#unitMenu.level-up-screen #unitStats {
+  width: 100%;
+  margin: 0;
+  color: var(--text-light);
+  font-size: clamp(13px, 3.5vw, 17px);
+  text-align: left;
+}
+
+#unitMenu.level-up-screen #unitStats h3 {
+  margin: 0 0 10px;
+  padding: 8px;
+  border: 1px solid var(--gold);
+  border-radius: 5px;
+  background: var(--panel-raised);
+  color: var(--text-light);
+  font-size: clamp(17px, 4vw, 21px);
+  text-align: center;
+}
+
+#unitMenu.level-up-screen #unitStats p {
+  margin: 8px 0;
+  line-height: 1.4;
+}
+
+#unitMenu.level-up-screen #unitStats hr {
+  margin: 10px 0;
+  border: 0;
+  border-top: 1px solid var(--border-main);
+}
+
+#unitMenu.level-up-screen .unit-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+#unitMenu.level-up-screen .unit-stat-grid > div {
+  padding: 8px 6px;
+  border: 1px solid var(--border-main);
+  border-radius: 4px;
+  background: var(--panel-raised);
+  color: var(--text-light);
+  white-space: nowrap;
+}
+
+#unitMenu.level-up-screen .level-old {
+  color: var(--text-light);
+}
+
+#unitMenu.level-up-screen .level-new,
+.level-new {
+  color: #00c832 !important;
+  font-weight: bold;
+}
+
+#unitMenu.level-up-screen .stat-capped,
+.stat-capped {
+  color: #ffd700 !important;
+  font-weight: bold;
+}
+
+#unitMenu.level-up-screen button {
+  display: none;
+}
+
+
+
+/* ==========================================
+   THEMES
+========================================== */
+
+/* Default theme */
+:root {
+  color-scheme: dark;
+
+  --page-bg: #202326;
+  --panel-bg: #30373c;
+  --panel-raised: #414b50;
+  --surface-bg: #d8d0bb;
+  --surface-raised: #e9e2d1;
+
+  --text-main: #252a2b;
+  --text-light: #f2eee3;
+
+  --border-main: #777568;
+  --border-strong: #252a2b;
+
+  --accent: #667d61;
+  --accent-hover: #52694e;
+  --gold: #c6a75b;
+
+  --equipped-item-color: #805400;
+
+  --selection-bg: #52694e;
+  --selection-text: #fff;
+
+  --controller-bg: #39464d;
+  --controller-panel: #252d32;
+  --controller-button: #667d61;
+
+  --blue-team: #356fc0;
+  --red-team: #b94a4a;
+}
+
+/* Dark theme */
+:root[data-theme="dark"] {
+  --page-bg: #000;
+  --panel-bg: #050505;
+  --panel-raised: #101010;
+  --surface-bg: #080808;
+  --surface-raised: #151515;
+
+  --text-main: #fff;
+  --text-light: #fff;
+
+  --border-main: #383838;
+  --border-strong: #555;
+
+  --accent: #555;
+  --accent-hover: #777;
+  --gold: #ffd700;
+
+  --equipped-item-color: #ffd700;
+
+  --selection-bg: #303030;
+  --selection-text: #fff;
+
+  --controller-bg: #050505;
+  --controller-panel: #000;
+  --controller-button: #202020;
+
+  --blue-team: #4b8ee8;
+  --red-team: #df5757;
+}
+
+/* Classic theme */
+:root[data-theme="classic"] {
+  color-scheme: dark;
+
+  --page-bg: #202326;
+  --panel-bg: #30373c;
+  --panel-raised: #414b50;
+  --surface-bg: #d8d0bb;
+  --surface-raised: #e9e2d1;
+
+  --text-main: #252a2b;
+  --text-light: #f2eee3;
+
+  --border-main: #777568;
+  --border-strong: #252a2b;
+
+  --accent: #667d61;
+  --accent-hover: #52694e;
+  --gold: #c6a75b;
+
+  --equipped-item-color: #805400;
+
+  --selection-bg: #52694e;
+  --selection-text: #fff;
+
+  --controller-bg: #39464d;
+  --controller-panel: #252d32;
+  --controller-button: #667d61;
+
+  --blue-team: #356fc0;
+  --red-team: #b94a4a;
+}
+
+/* Forest theme */
+:root[data-theme="forest"] {
+  --page-bg: #18251e;
+  --panel-bg: #26382d;
+  --panel-raised: #354b39;
+  --surface-bg: #d8d2b7;
+  --surface-raised: #eee7cd;
+
+  --text-main: #243027;
+  --text-light: #f2f0df;
+
+  --border-main: #78836b;
+  --border-strong: #25352a;
+
+  --accent: #486b43;
+  --accent-hover: #385638;
+  --gold: #c5a65c;
+
+  --equipped-item-color: #315d32;
+
+  --selection-bg: #385e39;
+  --selection-text: #fff;
+
+  --controller-bg: #304c36;
+  --controller-panel: #1e3024;
+  --controller-button: #486b43;
+
+  --blue-team: #356fc0;
+  --red-team: #b94a4a;
+}
+
+/* Royal theme */
+:root[data-theme="royal"] {
+  --page-bg: #192230;
+  --panel-bg: #27364a;
+  --panel-raised: #384a61;
+  --surface-bg: #d5d8dc;
+  --surface-raised: #e8e9e9;
+
+  --text-main: #202a39;
+  --text-light: #f0f1f4;
+
+  --border-main: #8793a2;
+  --border-strong: #26364a;
+
+  --accent: #526d91;
+  --accent-hover: #405a7b;
+  --gold: #c5a85e;
+
+  --equipped-item-color: #315b91;
+
+  --selection-bg: #405a7b;
+  --selection-text: #fff;
+
+  --controller-bg: #34465e;
+  --controller-panel: #202d40;
+  --controller-button: #526d91;
+
+  --blue-team: #356fc0;
+  --red-team: #b94a4a;
+}
+
+
+/* ==========================================
+   DARK THEME MENU DETAILS
+========================================== */
+
+:root[data-theme="dark"] #moveMenu,
+:root[data-theme="dark"] #unitMenu,
+:root[data-theme="dark"] #contextMenu {
+  background: #000 !important;
+  color: #fff !important;
+  border-color: #444 !important;
+}
+
+:root[data-theme="dark"] #moveMenu button,
+:root[data-theme="dark"] #unitMenu button,
+:root[data-theme="dark"] #contextMenu button {
+  background: #151515 !important;
+  color: #fff !important;
+  border-color: #555 !important;
+}
+
+:root[data-theme="dark"] #moveMenu button:hover,
+:root[data-theme="dark"] #unitMenu button:hover,
+:root[data-theme="dark"] #contextMenu button:hover,
+:root[data-theme="dark"] #moveMenu button.menu-option-selected,
+:root[data-theme="dark"] #unitMenu button.menu-option-selected,
+:root[data-theme="dark"] #contextMenu button.menu-option-selected {
+  background: #303030 !important;
+  color: #fff !important;
+  border-color: #ffd700 !important;
+}
+
+:root[data-theme="dark"] .combat-preview,
+:root[data-theme="dark"] .combat-preview-unit {
+  background: #080808 !important;
+  color: #fff !important;
+  border-color: #444 !important;
+}
+
+.inventory-item-name.equipped {
+  color: var(--equipped-item-color);
+  font-weight: 900;
+}
+
+/* ==========================================
+   RESPONSIVE LAYOUT
+========================================== */
+
+@media (max-width: 550px) {
+  .flex-container {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto auto;
+    min-height: 0;
+  }
+
+  .direction-controls {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 230px;
+    grid-template-rows: repeat(3, minmax(55px, 1fr));
+  }
+
+  .action-controls {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 230px;
+  }
+
+  .turn-controls {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-height: 20px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .turn-controls p {
+    font-size: 18px;
+  }
+
+  .turn-controls button {
+    width: auto;
+    min-width: 120px;
+  }
+}
+  /* ==========================================
+   TILE INFORMATION
+========================================== */
+
+.tile-info {
+  width: 100%;
+  height: 50px;
+  min-height: 30px;
+  padding: 4px 8px;
+  overflow: hidden;
+  border: 2px solid var(--border-main, #aaa);
+  background: var(--panel-raised, #414b50);
+  color: var(--text-light, #fff);
+  font-size: clamp(10px, 1.7vw, 13px);
+  text-align: left;
+}
+
+.tile-info-name {
+  margin: 0 0 3px;
+  padding-bottom: 2px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--gold, #c6a75b);
+  font-size: clamp(11px, 1.9vw, 15px);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tile-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px 10px;
+}
+
+.tile-info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  margin: 0;
+}
+
+  .direction-controls button {
+    min-height: 55px;
+    font-size: 14px;
+  }
+
+  .action-controls button {
+    min-height: 65px;
+    font-size: 16px;
+  }
+
+  #moveMenu,
+  #unitMenu,
+  #contextMenu {
+    max-width: calc(100vw - 20px);
+    padding: 7px;
+  }
+
+  #moveMenu button,
+  #unitMenu button,
+  #contextMenu button {
+    min-height: 30px;
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+
+  #moveMenu:has(.combat-preview) {
+    width: 94vw;
+  }
+
+  #unitMenu:has(#unitItems[style*="display: block"]) {
+    width: 94vw;
+  }
+
+  #unitItems {
+    gap: 7px;
+  }
+
+  #unitMenu .inventory-item {
+    padding: 7px 4px;
+    font-size: 11px;
+  }
+
+  #unitItemDetails {
+    padding: 5px;
+    font-size: 11px;
+  }
+
+  .item-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .unit-stat-grid {
+    gap: 6px 10px;
+    font-size: 12px;
+  }
+
+  .unit-stats-header h3 {
+    font-size: 19px;
+  }
+}
+
+@media (max-width: 380px) {
+  #moveMenu {
+    padding: 8px;
+  }
+  
+      .tile-info {
+    flex: 1 1 100px;
+  }
+
+  .combat-preview-units {
+    gap: 5px;
+  }
+
+  .combat-preview-unit {
+    padding: 6px;
+  }
+
+  #unitMenu.level-up-screen {
+    width: 95vw;
+    padding: 9px;
+  }
+
+  #unitMenu.level-up-screen .unit-stat-grid {
+    gap: 5px;
+  }
+
+  #unitMenu.level-up-screen .unit-stat-grid > div {
+    padding: 6px 4px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 350px) {
+  .flex-container {
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .direction-controls,
+  .action-controls {
+    padding: 5px;
+  }
+
+  .direction-controls button {
+    font-size: 12px;
+  }
+
+  .action-controls button {
+    font-size: 14px;
+  }
+}
+/* ==========================================
+   COMPACT INVENTORY MENU
+========================================== */
+
+#unitMenu:has(#unitItems[style*="display: block"]) {
+  width: min(78vw, 310px);
+  min-width: 0;
+  max-width: calc(100vw - 16px);
+  max-height: 55dvh;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+/* Inventory layout */
+#unitItems {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  grid-template-rows: auto 1fr;
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Title */
+#unitItems .inventory-title {
+  grid-column: 1 / -1;
+  margin: 0 0 3px;
+  font-size: 15px;
+}
+
+/* Item list */
+.inventory-list {
+  grid-column: 1;
+  grid-row: 2;
+  gap: 3px;
+  min-width: 0;
+}
+
+#unitMenu .inventory-item {
+  padding: 5px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+/* Selected item details */
+#unitItemDetails {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  max-height: 35dvh;
+  padding: 5px;
+  overflow-y: auto;
+  font-size: 11px;
+}
+
+#unitItemDetails h3 {
+  margin: 0 0 5px;
+  font-size: 13px;
+}
+
+.item-detail-grid {
+  grid-template-columns: 1fr;
+  gap: 3px;
+  font-size: 11px;
+}
+
+#unitItemDetails p {
+  margin: 5px 0;
+}
+
+#unitItemDetails button {
+  margin-top: 5px;
+  padding: 5px;
+  font-size: 11px;
+}
+/* ==========================================
+   EXTRA COMPACT INVENTORY MENU
+========================================== */
+
+#unitMenu:has(#unitItems[style*="display: block"]) {
+  width: min(250px, 48vw) !important;
+  min-width: 0 !important;
+  max-width: calc(100vw - 12px) !important;
+  max-height: 38dvh !important;
+  padding: 5px !important;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+/* Inventory grid */
+#unitItems {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Heading */
+#unitItems .inventory-title {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 13px;
+}
+
+/* Item list */
+.inventory-list {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+#unitMenu .inventory-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 4px;
+  font-size: 10px;
+  line-height: 1.15;
+  text-align: left;
+}
+
+.inventory-item-name,
+.inventory-item-uses {
+  display: inline;
+}
+
+.inventory-item-uses {
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+/* Item details */
+#unitItemDetails {
+  grid-column: 2;
+  min-width: 0;
+  max-height: 25dvh;
+  padding: 4px;
+  overflow-y: auto;
+  font-size: 10px;
+}
+
+#unitItemDetails h3 {
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+
+.item-detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+}
+
+#unitItemDetails p {
+  margin: 4px 0;
+}
+
+#unitItemDetails button {
+  width: 100%;
+  margin-top: 4px;
+  padding: 4px;
+  font-size: 10px;
+}
+
+/* ==========================================
+   STAFF MENU
+========================================== */
+
+#unitMenu button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==========================================
+   COMPACT STAFF MENU (matches weapon menu)
+========================================== */
+
+#unitMenu:has(#staffMenu[style*="display: block"]) {
+  width: min(260px, calc(100vw - 20px));
+  min-width: 150px;
+  padding: 8px;
+  border-width: 2px;
+}
+
+#staffMenu h3 {
+  margin: 2px 0 6px;
+  font-size: 14px;
+}
+
+#staffMenu .staff-menu-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
+}
+
+#staffMenu .staff-menu-list button {
+  width: 100%;
+  min-height: 42px;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: clamp(14px, 3.5vw, 18px);
+}
+
+/* ==========================================
+   COMPACT UNIT STATS MENU
+========================================== */
+
+#unitMenu:not(.level-up-screen):has(#unitDetails[style*="display: block"]) {
+  width: min(250px, calc(100vw - 20px));
+  min-width: 0;
+  padding: 8px;
+  border-width: 2px;
+}
+
+#unitMenu:not(.level-up-screen) #unitStats,
+#unitMenu:not(.level-up-screen) #unitWeapons {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+#unitMenu:not(.level-up-screen) .unit-stats-header {
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+#unitMenu:not(.level-up-screen) .unit-stats-header h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+#unitMenu:not(.level-up-screen) .unit-level {
+  font-size: 12px;
+}
+
+#unitMenu:not(.level-up-screen) .unit-stat-grid {
+  gap: 2px 10px;
+  font-size: 12px;
+}
+
+#unitMenu:not(.level-up-screen) .unit-stat-grid > div {
+  padding: 1px 0;
+}
+
+#unitMenu:not(.level-up-screen) #unitWeapons h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+#unitMenu:not(.level-up-screen) #unitDetailButtons {
+  margin-top: 6px;
+}
+
+#unitMenu:not(.level-up-screen) #unitDetailButtons button {
+  min-height: 26px;
+  margin: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+#shopMenu {
+  display: none;
+  flex-direction: column;
+  position: absolute;
+  top: 10px; right: 10px; z-index: 2000;
+  width: min(300px, calc(100% - 20px));
+  max-height: calc(100% - 20px);
+  overflow: hidden;
+  padding: 8px; box-sizing: border-box; text-align: center;
+  background: var(--surface-bg, #eee); color: var(--text-main, #222);
+  border: 2px solid var(--gold, #c6a75b);
+  box-shadow: 0 3px 12px rgba(0,0,0,.45);
+}
+#shopMenu .shop-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+#shopMenu h3 { margin: 2px 0 4px; font-size: 15px; }
+#shopMenu p { margin: 3px 0; font-size: 12px; }
+#shopMenu .shop-gold { font-weight: bold; }
+#shopMenu .shop-sub { opacity: .75; }
+#shopMenu .shop-message { color: #b03030; font-weight: bold; }
+#shopMenu button {
+  display: block; width: 100%; min-height: 32px; margin: 4px 0; padding: 6px 8px;
+  font-size: 13px; font-weight: bold; cursor: pointer;
+  background: var(--surface-raised, #ddd); color: var(--text-main, #222);
+  border: 1px solid var(--border-main, #888);
+}
+#shopMenu button.shop-unavailable { opacity: .5; }
+#shopMenu button:hover,
+#shopMenu button.menu-option-selected {
+  background: var(--selection-bg, #52694e); color: var(--selection-text, #fff);
+  outline: 1px solid var(--gold, #c6a75b);
+}
+:root[data-theme="dark"] #shopMenu { background: #000; color: #fff; border-color: #444; }
+:root[data-theme="dark"] #shopMenu button { background: #151515; color: #fff; border-color: #555; }
+
+/* ==========================================
+   UNIT INFORMATION PANEL
+========================================== */
+
+.unit-info {
+  width: 100%;
+  max-width: 800px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 2px solid var(--border-main, #aaa);
+  background: var(--panel-raised, #414b50);
+  color: var(--text-light, #fff);
+  font-size: clamp(13px, 2.5vw, 17px);
+}
+
+.unit-info-name {
+  margin: 0 0 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--gold, #c6a75b);
+  font-size: clamp(14px, 2.8vw, 19px);
+  text-align: center;
+}
+
+.unit-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 12px;
+}
+
+.unit-info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  margin: 0;
+}
+
+.unit-info-empty {
+  margin: 0;
+  text-align: center;
+  opacity: 0.7;
+}
+
+/* ==========================================
+   TILE + UNIT INFO, SIDE BY SIDE
+========================================== */
+
+.info-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: 800px;
+  margin-top: 8px;
+}
+
+.info-row .tile-info,
+.info-row .unit-info {
+  width: auto;
+  max-width: none;
+  height: auto;
+  min-height: 50px;
+  margin: 0;
+  padding: 6px 8px;
+  overflow: hidden;
+  border: 2px solid var(--border-main, #aaa);
+  background: var(--panel-raised, #414b50);
+  color: var(--text-light, #fff);
+  font-size: clamp(11px, 2.6vw, 15px);
+  text-align: left;
+}
+
+.info-row .tile-info-name,
+.info-row .unit-info-name {
+  margin: 0 0 4px;
+  padding-bottom: 2px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--gold, #c6a75b);
+  font-size: clamp(12px, 3vw, 17px);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info-row .tile-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 10px;
+}
+
+.info-row .unit-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+}
+
+.info-row .tile-info-row,
+.info-row .unit-info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  margin: 0;
+}
+
+.inventory-item-name.plunder,
+#unitItemDetails h3.plunder {
+  color: #1e9e3a;
+}
+
+/* ==========================================
+   SLIM TURN / SIDE / GOLD BAR
+========================================== */
+
+.flex-container {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  grid-template-rows: 1fr auto;
+  min-height: 0;
+}
+
+.direction-controls {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 230px;
+}
+
+.action-controls {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 230px;
+}
+
+.turn-controls {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: space-around;
+  height: 20px;
+  min-height: 0;
+  padding: 0 8px;
+}
+
+.turn-controls p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.direction-controls > button.shoulder-left {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.direction-controls > button.shoulder-right {
+  grid-column: 3;
+  grid-row: 1;
+}
+/* ==========================================
+   TRADE MENU (inside the game area)
+========================================== */
+
+#tradeMenu {
+  display: none;
+  position: absolute;
+  top: 10px; left: 10px; right: 10px;
+  z-index: 2000;
+  max-height: calc(100% - 20px);
+  overflow-y: auto;
+  padding: 8px; box-sizing: border-box; text-align: center;
+  background: var(--surface-bg, #eee); color: var(--text-main, #222);
+  border: 2px solid var(--gold, #c6a75b);
+  box-shadow: 0 3px 12px rgba(0,0,0,.45);
+}
+#tradeMenu h3 { margin: 2px 0 6px; font-size: 15px; }
+#tradeMenu h4 { margin: 0 0 4px; font-size: 14px; }
+.trade-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.trade-column { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#tradeMenu button {
+  display: block; width: 100%; min-height: 30px; margin: 0; padding: 5px 6px;
+  font-size: 12px; font-weight: bold; cursor: pointer; overflow-wrap: anywhere;
+  background: var(--surface-raised, #ddd); color: var(--text-main, #222);
+  border: 1px solid var(--border-main, #888);
+}
+#tradeMenu button.menu-option-selected {
+  background: var(--selection-bg, #52694e); color: var(--selection-text, #fff);
+  outline: 1px solid var(--gold, #c6a75b);
+}
+#tradeMenu button.trade-held { border: 2px solid #ffdf55; }
+.trade-hint { margin: 6px 0 0; font-size: 11px; opacity: .8; }
+
+:root[data-theme="dark"] #tradeMenu { background: #000; color: #fff; border-color: #444; }
+:root[data-theme="dark"] #tradeMenu button { background: #151515; color: #fff; border-color: #555; }
+
+/* ==========================================
+   TITLE SCREEN
+========================================== */
+
+#titleScreen {
+  position: fixed; inset: 0; z-index: 5000;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--page-bg, #202326);
+  color: var(--text-light, #f2eee3);
+}
+.title-box {
+  width: min(360px, calc(100vw - 32px));
+  padding: 24px 20px; text-align: center;
+  background: var(--panel-bg, #30373c);
+  border: 3px solid var(--gold, #c6a75b);
+  box-shadow: 0 0 0 3px var(--border-strong, #252a2b), 0 8px 24px rgba(0,0,0,.5);
+}
+.title-logo {
+  margin: 0 0 4px; font-size: clamp(28px, 8vw, 40px);
+  letter-spacing: 3px; color: var(--gold, #c6a75b);
+}
+.title-sub { margin: 0 0 20px; font-size: 13px; opacity: .75; }
+.title-heading { margin: 0 0 6px; font-size: 16px; }
+#titleMenu { display: flex; flex-direction: column; gap: 8px; }
+#titleMenu button {
+  min-height: 46px; padding: 10px 14px;
+  font-size: 17px; font-weight: bold; cursor: pointer;
+  background: var(--panel-raised, #414b50);
+  color: var(--text-light, #f2eee3);
+  border: 2px solid var(--border-main, #777568);
+}
+#titleMenu button:hover,
+#titleMenu button.menu-option-selected {
+  background: var(--selection-bg, #52694e);
+  color: var(--selection-text, #fff);
+  border-color: var(--gold, #c6a75b);
+}
+#titleMessage { min-height: 18px; margin: 14px 0 0; font-size: 13px; color: #ff8a8a; }
+
+/* ==========================================
+   TOAST
+========================================== */
+
+#toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+  z-index: 6000; padding: 8px 16px;
+  background: var(--panel-bg, #30373c); color: var(--text-light, #fff);
+  border: 2px solid var(--gold, #c6a75b);
+  font-size: 14px; font-weight: bold;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+#toast.toast-visible { opacity: 1; }
+
+/* ==========================================
+   UNITS LIST
+========================================== */
+
+#unitsList {
+  display: none;
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2500;
+  flex-direction: column;
+  width: min(calc(100% - 20px), 640px);
+  max-height: calc(100% - 20px);
+  padding: 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: var(--surface-bg, #eee);
+  color: var(--text-main, #222);
+  border: 2px solid var(--gold, #c6a75b);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+}
+
+#unitsList .ul-title { margin: 2px 0 2px; font-size: 15px; text-align: center; }
+#unitsList .ul-pager { margin: 0 0 6px; font-size: 11px; text-align: center; opacity: .8; }
+#unitsList .ul-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
+
+.units-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.units-table th,
+.units-table td {
+  padding: 4px 6px;
+  text-align: center;
+  border-bottom: 1px solid var(--border-main, #888);
+}
+
+.units-table th:first-child,
+.units-table td:first-child { text-align: left; }
+
+.units-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-raised, #e9e2d1);
+  cursor: pointer;
+}
+
+.units-table th.ul-sorted { color: var(--accent-hover, #52694e); }
+
+.units-table .ul-selected {
+  background: var(--selection-bg, #52694e);
+  color: var(--selection-text, #fff);
+  outline: 1px solid var(--gold, #c6a75b);
+  outline-offset: -1px;
+}
+
+.units-table th.ul-selected { color: var(--selection-text, #fff); }
+
+:root[data-theme="dark"] #unitsList { background: #000; color: #fff; border-color: #444; }
+:root[data-theme="dark"] .units-table th { background: #151515; }
+:root[data-theme="dark"] .units-table .ul-selected { background: #303030; }
+
+/* ==========================================
+   STEAL MENU (inside the game area)
+========================================== */
+
+#stealMenu {
+  display: none;
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  width: min(280px, calc(100% - 20px));
+  max-height: calc(100% - 20px);
+  overflow-y: auto;
+  padding: 8px;
+  box-sizing: border-box;
+  text-align: center;
+  background: var(--surface-bg, #eee);
+  color: var(--text-main, #222);
+  border: 2px solid var(--gold, #c6a75b);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .45);
+}
+
+#stealMenu h3 { margin: 2px 0 4px; font-size: 15px; }
+#stealMenu .steal-sub { margin: 3px 0 6px; font-size: 11px; opacity: .8; }
+
+#stealMenu button {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  margin: 4px 0;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  background: var(--surface-raised, #ddd);
+  color: var(--text-main, #222);
+  border: 1px solid var(--border-main, #888);
+}
+
+#stealMenu button.menu-option-selected {
+  background: var(--selection-bg, #52694e);
+  color: var(--selection-text, #fff);
+  outline: 1px solid var(--gold, #c6a75b);
+}
+
+:root[data-theme="dark"] #stealMenu { background: #000; color: #fff; border-color: #444; }
+:root[data-theme="dark"] #stealMenu button { background: #151515; color: #fff; border-color: #555; }
+
+/* ==========================================
+   PROMOTION PREVIEW
+========================================== */
+
+#moveMenu:has(.promotion-preview) {
+  width: min(94vw, 440px);
+}
+
+#unitMenu:has(.promotion-preview) {
+  width: min(94vw, 440px) !important;
+  max-width: calc(100vw - 20px) !important;
+}
+
+.promotion-layout {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.8fr) minmax(0, 1.2fr);
+  gap: 8px;
+  align-items: start;
+  text-align: left;
+}
+
+.promotion-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.promotion-preview {
+  min-width: 0;
+  padding: 6px;
+  border-left: 2px solid var(--border-main, #888);
+  font-size: 12px;
+  text-align: left;
+}
+
+.promotion-preview:empty {
+  visibility: hidden;
+}
+
+.promo-class {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--gold, #c6a75b);
+  font-size: 13px;
+  text-align: center;
+}
+
+.promo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 10px;
+}
+
+.promo-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.promo-arrow {
+  margin: 0 3px;
+  opacity: 0.7;
+}
+
+.promo-up   { color: #1a7f2e; font-weight: bold; }
+.promo-down { color: #b03030; font-weight: bold; }
+.promo-cap  { color: #8a6500; font-weight: bold; }
+
+:root[data-theme="dark"] .promo-up   { color: #00c832; }
+:root[data-theme="dark"] .promo-down { color: #ff6b6b; }
+:root[data-theme="dark"] .promo-cap  { color: #ffd700; }
+
+@media (max-width: 550px) {
+  .promo-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ==========================================
+   VICTORY SCREEN
+========================================== */
+
+#victoryScreen {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, .7);
+  color: var(--text-light, #f2eee3);
+}
+.victory-box {
+  width: min(360px, calc(100vw - 32px));
+  padding: 24px 20px; text-align: center;
+  background: var(--panel-bg, #30373c);
+  border: 3px solid var(--gold, #c6a75b);
+  box-shadow: 0 0 0 3px var(--border-strong, #252a2b), 0 8px 24px rgba(0,0,0,.5);
+}
+.victory-title { margin: 0 0 8px; font-size: clamp(26px, 7vw, 38px); letter-spacing: 2px; }
+.victory-detail { margin: 0 0 18px; font-size: 14px; opacity: .85; }
+.victory-box button {
+  display: block; width: 100%; min-height: 44px; margin: 8px 0 0;
+  font-size: 16px; font-weight: bold; cursor: pointer;
+  background: var(--panel-raised, #414b50); color: var(--text-light, #f2eee3);
+  border: 2px solid var(--border-main, #777568);
+}
+.victory-box button:hover { background: var(--selection-bg, #52694e); border-color: var(--gold, #c6a75b); }
+
+/* "View map": no dimming, just a bar at the bottom. */
+#victoryScreen.victory-minimized {
+  inset: auto 0 0 0; background: none; pointer-events: none;
+}
+#victoryScreen.victory-minimized .victory-box {
+  pointer-events: auto; width: min(420px, 100vw);
+  padding: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center;
+}
+#victoryScreen.victory-minimized .victory-detail { display: none; }
+#victoryScreen.victory-minimized .victory-title { margin: 0; font-size: 20px; }
+#victoryScreen.victory-minimized button { width: auto; margin: 0; min-height: 32px; padding: 4px 10px; font-size: 13px; }
+
+/* ==========================================
+   STATUS EFFECTS
+========================================== */
+
+.unit-stat-grid > .stat-status { grid-column: 1 / -1; }
+
+.status-poison { color: #a64fd6; font-weight: bold; }
+.status-sleep  { color: #3f8fe0; font-weight: bold; }
+.status-stone  { color: #8a949c; font-weight: bold; }

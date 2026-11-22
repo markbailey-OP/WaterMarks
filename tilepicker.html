@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="UTF-8">
+  <title>Tile Picker</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+  <link rel="icon" href="data:,">
+  <style>
+    body { margin: 8px; background: #111; color: #fff; font-family: Arial, sans-serif; }
+    #readout { position: sticky; top: 0; padding: 6px 0; font-size: 18px; background: #111; }
+    canvas { image-rendering: pixelated; cursor: crosshair; }
+  </style>
+</head>
+<body>
+  <div id="readout">Hover a tile. Click to lock it.</div>
+  <canvas id="sheet"></canvas>
+  <script type="module" src="./js/tilePicker.js"></script>
+</body>
+</html>

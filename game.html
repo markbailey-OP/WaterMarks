@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Water Marks</title>
+  <meta name="description" content="Turn-based tactical RPG grid duel inspired by Fire Emblem with weapon triangle combat, leveling, staves, and PvP turns.">
+
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="data:,">
+
+  <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+
+  <!-- Diagnostic error banner (kept for troubleshooting; hidden unless an uncaught error occurs) -->
+  <div id="error-banner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:99999; background:#7f1d1d; color:#fecaca; padding:12px 16px; font-family:monospace; font-size:13px; border-bottom:2px solid #ef4444; box-shadow:0 4px 12px rgba(0,0,0,0.5);">
+    <div style="font-weight:bold; margin-bottom:4px;">Diagnostic Error:</div>
+    <div id="error-message" style="white-space:pre-wrap;"></div>
+  </div>
+  <script src="./js/errorBanner.js"></script>
+
+  <!-- ======================================
+       TITLE SCREEN
+  ======================================= -->
+
+  <div id="titleScreen">
+    <div class="title-box">
+      <h1 class="title-logo">WATER MARKS</h1>
+      <p class="title-sub">Tactical grid war</p>
+
+      <!-- Buttons are rendered by js/menus/titleScreen.js -->
+      <div id="titleMenu"></div>
+
+      <p id="titleMessage"></p>
+    </div>
+  </div>
+
+
+  <!-- ======================================
+       GAME SCREEN (hidden until a game starts)
+  ======================================= -->
+
+  <div id="gameScreen" style="display:none;">
+
+    <!-- ======================================
+         GAME CANVAS AND MENU OVERLAYS
+    ======================================= -->
+
+    <div id="gameArea">
+
+      <!-- Game canvas -->
+      <canvas id="gameCanvas"></canvas>
+
+
+      <!-- ======================================
+           MOVEMENT CONFIRMATION MENU
+      ======================================= -->
+
+      <div id="moveMenu">
+
+        <h3 id="moveMenuTitle">
+          Move Unit?
+        </h3>
+
+        <!-- Movement actions -->
+        <div id="moveActions">
+
+          <button id="attackOption" data-click="beginAttack">
+            ATTACK
+          </button>
+          
+         <button id="stealOption" data-click="beginMovedSteal"
+            style="display:none;">
+            STEAL
+          </button>
+          
+         <button id="summonOption" data-click="beginMovedSummon"
+            style="display:none;">
+            SUMMON
+          </button>
+
+          <button id="staffOption" data-click="beginMovedStaff"
+            style="display:none;">
+            STAFF
+          </button>
+
+          <button id="captureOption" data-click="captureTile"
+            style="display:none;">
+            CAPTURE
+          </button>
+
+          <button id="promoteOption" data-click="beginMovedPromote"
+            style="display:none;">
+            PROMOTE
+          </button>
+
+          <button id="shopOption" data-click="beginMovedShop"
+            style="display:none;">
+            SHOP
+          </button>
+
+          <button id="tradeOption" data-click="beginMovedTrade"
+            style="display:none;">
+            TRADE
+          </button>
+
+          <button id="ballistaOption" data-click="beginMovedBallista"
+            style="display:none;">
+            BALLISTA
+          </button>
+
+          <button id="exitBallistaOption" data-click="beginMovedExitBallista"
+            style="display:none;">
+            EXIT
+          </button>
+
+          <button data-click="inspectMovedItems">
+            ITEMS
+          </button>
+
+          <button data-click="inspectMovedStats">
+            STATS
+          </button>
+
+          <button data-click="confirmMove">
+            WAIT
+          </button>
+
+        </div>
+
+
+        <!-- Attack target and weapon selection -->
+        <div id="attackChoices" style="display:none;">
+
+          <p id="attackPrompt"></p>
+
+          <div id="attackOptions"></div>
+
+        </div>
+
+      </div>
+
+
+      <!-- ======================================
+           UNIT INSPECTION MENU
+      ======================================= -->
+
+      <div id="unitMenu">
+
+        <!-- Initial unit options -->
+        <div id="unitOptions">
+
+          <h3>Unit Options</h3>
+
+          <button
+            id="stationaryAttackOption"
+            data-click="beginStationaryAttack"
+            style="display:none;">
+            ATTACK
+          </button>
+
+          <button
+            id="stationaryBallistaOption"
+            data-click="beginStationaryBallista"
+            style="display:none;">
+            BALLISTA
+          </button>
+
+          <button data-click="checkStats">
+            CHECK STATS
+          </button>
+
+        </div>
+
+
+        <!-- Unit inspection views -->
+        <div id="unitDetails" style="display:none;">
+
+          <!-- Unit stats -->
+          <div
+            id="unitStats"
+            style="text-align:left;">
+          </div>
+
+
+          <!-- Weapon ranks and inventory -->
+          <div
+            id="unitWeapons"
+            style="display:none; text-align:left;">
+          </div>
+
+
+          <!-- Inspection navigation -->
+          <div id="unitDetailButtons">
+
+            <button data-click="toggleUnitView">
+              TOGGLE
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- ======================================
+         GAME CONTROLS
+    ======================================= -->
+
+    <div class="flex-container">
+
+      <!-- Direction controls -->
+      <div class="direction-controls">
+
+        <button data-input="up">
+          UP
+        </button>
+
+        <button class="shoulder-left" data-input="lt">
+          LT
+        </button>
+
+        <button class="shoulder-right" data-input="rt">
+          RT
+        </button>
+
+        <div class="horizontal-controls">
+
+          <button data-input="left">
+            LEFT
+          </button>
+
+          <button data-input="right">
+            RIGHT
+          </button>
+
+        </div>
+
+        <button data-input="down">
+          DOWN
+        </button>
+
+      </div>
+
+
+      <!-- Select and Back -->
+      <div class="action-controls">
+
+        <button data-input="select">
+          SELECT
+        </button>
+
+        <button data-input="back">
+          BACK
+        </button>
+
+      </div>
+
+
+      <!-- Turn information -->
+      <div class="turn-controls">
+
+        <p id="turnCounter">
+          Turn: 1
+        </p>
+
+        <p id="sideCounter">
+          Side: Blue
+        </p>
+
+        <p id="goldCounter">
+          Gold: 1000
+        </p>
+      </div>
+    </div>
+
+    <div class="info-row">
+      <div id="tileInfo" class="tile-info"></div>
+      <div id="unitInfo" class="unit-info"></div>
+    </div>
+
+  </div>
+
+
+  <!-- ======================================
+       GAME JAVASCRIPT
+  ======================================= -->
+
+  <script type="module" src="./js/main.js"></script>
+
+</body>
+</html>
