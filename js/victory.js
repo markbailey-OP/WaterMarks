@@ -1,0 +1,190 @@
+import { gameGrid, TEAM_NAMES, TEAM_COLORS } from "./gameState.js";
+import { pushInputContext, popInputContext } from "./input.js";
+
+// ==========================================
+// SETTINGS (tweak these)
+// ==========================================
+
+// Percent of ALL forts on the map a team must hold to win.
+export const FORT_WIN_PERCENT = 75;
+
+// Only these teams can win, and only their thrones count.
+// Other teams can lose every fort and the game goes on.
+export const CONTENDING_TEAMS = [1, 2];
+
+// ==========================================
+// STATE
+// ==========================================
+
+let gameOver = null;       // { winner, reason, detail } once the game ends
+let overlay = null;
+let inputContext = null;
+
+export const isGameOver = () => gameOver !== null;
+export const getGameResult = () => gameOver;
+
+const isContender = team => CONTENDING_TEAMS.includes(team);
+
+export function resetVictory() {
+  gameOver = null;
+
+  if (inputContext) {
+    popInputContext(inputContext);
+    inputContext = null;
+  }
+
+  overlay?.remove();
+  overlay = null;
+}
+
+// ==========================================
+// FORT COUNTING
+// ==========================================
+
+// { total, counts: { team: forts held } } for the whole map.
+export function countForts() {
+  const counts = {};
+  let total = 0;
+
+  for (const row of gameGrid) {
+    for (const tile of row) {
+      if (tile?.name !== "Fort") continue;
+
+      total++;
+
+      if (tile.owner != null) {
+        counts[tile.owner] = (counts[tile.owner] ?? 0) + 1;
+      }
+    }
+  }
+
+  return { total, counts };
+}
+
+// ==========================================
+// FORT VICTORY
+// ==========================================
+
+// Returns a result object, or null. `preferTeam` is checked first, so if a
+// low FORT_WIN_PERCENT lets both teams qualify, the one who just captured wins.
+export function checkFortVictory(preferTeam = null) {
+  const { total, counts } = countForts();
+
+  if (total === 0) return null;
+
+  const order = [...CONTENDING_TEAMS].sort(
+    (a, b) => (b === preferTeam) - (a === preferTeam)
+  );
+
+  for (const team of order) {
+    const held = counts[team] ?? 0;
+
+    // Integer math, so 3 of 5 forts at 60% has no rounding trouble.
+    if (held * 100 >= total * FORT_WIN_PERCENT) {
+      return {
+        winner: team,
+        reason: "forts",
+        detail: `Holds ${held} of ${total} forts (${FORT_WIN_PERCENT}% needed).`
+      };
+    }
+  }
+
+  return null;
+}
+
+// ==========================================
+// THRONE VICTORY
+// ==========================================
+
+// A throne changed hands. Only a contender taking another contender's
+// throne counts. Neutral or non-contending thrones do nothing.
+export function checkThroneVictory(tile, previousOwner, newOwner) {
+  if (tile?.name !== "Throne") return null;
+  if (previousOwner === newOwner) return null;
+  if (!isContender(previousOwner) || !isContender(newOwner)) return null;
+
+  return {
+    winner: newOwner,
+    reason: "throne",
+    detail: `Captured the ${TEAM_NAMES[previousOwner]} throne.`
+  };
+}
+
+// ==========================================
+// GAME OVER SCREEN
+// ==========================================
+
+function showGameOver(result) {
+  overlay = document.createElement("div");
+  overlay.id = "victoryScreen";
+
+  const box = document.createElement("div");
+  box.className = "victory-box";
+
+  const title = document.createElement("h1");
+  title.className = "victory-title";
+  title.textContent = `${TEAM_NAMES[result.winner]} wins!`;
+  title.style.color = TEAM_COLORS[result.winner] ?? "inherit";
+
+  const detail = document.createElement("p");
+  detail.className = "victory-detail";
+  detail.textContent = result.detail;
+
+  const menuButton = document.createElement("button");
+  menuButton.type = "button";
+  menuButton.textContent = "MAIN MENU";
+  menuButton.addEventListener("click", () => location.reload());
+
+  const viewButton = document.createElement("button");
+  viewButton.type = "button";
+  viewButton.textContent = "VIEW MAP";
+  viewButton.addEventListener("click", () => {
+    const small = overlay.classList.toggle("victory-minimized");
+    viewButton.textContent = small ? "SHOW RESULT" : "VIEW MAP";
+  });
+
+  box.append(title, detail, viewButton, menuButton);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  // Freeze the board. Select returns to the main menu.
+  inputContext = pushInputContext({
+    up() {}, down() {}, left() {}, right() {}, back() {}, lt() {}, rt() {},
+    select: () => menuButton.click()
+  });
+}
+
+function endGame(result) {
+  if (gameOver) return;
+
+  gameOver = result;
+  showGameOver(result);
+}
+
+// ==========================================
+// PUBLIC HOOKS
+// ==========================================
+
+// Call after a Fort or Throne changes owner.
+export function reportCapture(tile, previousOwner, newOwner) {
+  if (gameOver) return gameOver;
+
+  const result =
+    checkThroneVictory(tile, previousOwner, newOwner) ??
+    checkFortVictory(newOwner);
+
+  if (result) endGame(result);
+
+  return result;
+}
+
+// Call after loading a save, in case it is already decided.
+export function checkVictory() {
+  if (gameOver) return gameOver;
+
+  const result = checkFortVictory();
+
+  if (result) endGame(result);
+
+  return result;
+}
