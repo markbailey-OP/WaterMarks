@@ -4,7 +4,8 @@ import {
   gameCursor,
   getUnitPosition,
   getGold,
-  setGold
+  setGold,
+  TEAM_COUNT
 } from "./gameState.js";
 import {
   findAttackTargets,
@@ -161,6 +162,25 @@ const NO_DANGER = new Set();
 
 export function isCpuSide(team) {
   return Object.hasOwn(CPU_SIDES, team);
+}
+
+// Sets who is human. Every other team becomes CPU.
+export function setControllers(humanTeams) {
+  for (const key of Object.keys(CPU_SIDES)) delete CPU_SIDES[key];
+
+  for (let team = 1; team <= TEAM_COUNT; team++) {
+    if (!humanTeams.includes(team)) CPU_SIDES[team] = "attack";
+  }
+}
+
+export function getHumanTeams() {
+  const teams = [];
+
+  for (let team = 1; team <= TEAM_COUNT; team++) {
+    if (!isCpuSide(team)) teams.push(team);
+  }
+
+  return teams;
 }
 
 function getAi(unit) {

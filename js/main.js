@@ -30,7 +30,8 @@ import {
 import { 
   isCpuSide, 
   runCpuTurn,
-  rollPromotionShop
+  rollPromotionShop,
+  setControllers
 } from "./cpu.js";
 import { 
   pickSaveFile, 
@@ -255,8 +256,11 @@ function beginPlay(cursorStart = null) {
   }
 }
 
-async function startNewGame(mapId) {
+async function startNewGame(mapId, humanTeams = [1]) {
   await loadMap(mapId);
+
+  // Before any units spawn: the CPU rolls promotion shops at spawn time.
+  setControllers(humanTeams);
 
   buildMap();
   assignFortIndexes();

@@ -17,9 +17,13 @@ import {
   getPromotionSources,
   setPromotionSources
 } from "./strongholds.js";
+import { 
+  isCpuSide,
+  setControllers,
+  getHumanTeams
+} from "./cpu.js";
 import { createTerrainByName } from "./map.js";
 import { setMapDirty } from "./gameArea.js";
-import { isCpuSide } from "./cpu.js";
 import { getActiveAttack, getPendingMove } from "./menus/attackState.js";
 import { showToast } from "./utils.js";
 
@@ -122,6 +126,7 @@ export function serializeGame() {
     turn,
     side,
     gold: { ...teamGold },
+    humans: getHumanTeams(),
     unlocked: getUnlockedUnits(),
     promotionSources: getPromotionSources(),
     cursor: gameCursor ? { x: gameCursor.x, y: gameCursor.y } : null,
@@ -256,6 +261,11 @@ export function restoreGame(data) {
 
   setUnlockedUnits(data.unlocked);
   setPromotionSources(data.promotionSources);
+  setControllers(
+  Array.isArray(data.humans)
+    ? data.humans.filter(Number.isInteger)
+    : [1]
+);
   setTurnState(savedTurn, savedSide);
   setMapDirty(true);
 }
