@@ -1,5 +1,11 @@
 import { gameGrid } from "./gameState.js";
-import { River, SnagBridge, Plain, Floor } from "./terrain.js";
+import { 
+  River, 
+  SnagBridge, 
+  Plain, 
+  Floor,
+  Peak
+} from "./terrain.js";
 
 const DIRECTIONS = [
   { x: 0, y: -1 },
@@ -27,6 +33,10 @@ export function destroyTerrain(x, y) {
   if (!tile) return [];
 
   switch (tile.name) {
+    case "Cave":
+      replaceTile(x, y, new Peak());
+      return [{ x, y }];
+      
     case "WeakWall":
       replaceTile(x, y, new Floor());
       return [{ x, y }];

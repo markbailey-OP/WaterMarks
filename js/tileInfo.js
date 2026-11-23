@@ -30,7 +30,7 @@ export function updateTileInfo(cursor) {
   if (!tile) return;
 
   const hasHp = Number.isFinite(tile.hp);
-  const isFort = tile.name === "Fort";
+  const isFort = tile.name === "Fort" || tile.name === "Cave";
   const isStronghold = isFort || tile.name === "Throne";
   const queue = isFort ? (tile.queue ?? []) : [];
 

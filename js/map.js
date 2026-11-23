@@ -14,6 +14,7 @@ import {
   Mountain,
   Peak,
   Fort,
+  Cave,
   Throne,
   ThroneBack,
   Shop
@@ -113,6 +114,7 @@ export function createTerrain(symbol) {
     case "T": return new Forest();
     case "M": return new Mountain();
     case "P": return new Peak();
+    case "C": return new Cave();
     case "O": return new Fort();
     case "H": return new Throne();
     case "h": return new ThroneBack();

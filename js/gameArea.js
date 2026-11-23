@@ -203,10 +203,11 @@ function renderMapLayer() {
                         if (tile.owner) {
         const teamColor = TEAM_COLORS[tile.owner];
 
-        // Thrones still show a border; forts show only their number.
-        if (tile.name === "Throne") {
+        // Thrones and Caves show a border; forts show only their number.
+        if (tile.name === "Throne" || 
+             tile.name === "Cave") {
           ctx.strokeStyle = teamColor;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 3;
           ctx.strokeRect(
             x * TILE_SIZE + 3,
             y * TILE_SIZE + 3,

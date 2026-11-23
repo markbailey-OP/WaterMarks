@@ -1,1 +1,934 @@
-import {   gameGrid,   TEAM_NAMES } from "./gameState.js";import {   isPromoted,   raiseToLevel,   getClassTier,   applyWeaponExpRecord,  TIER_LEVEL_BONUS } from "./exp.js";import {  applyPromotion,  getPromotionOptions,  getPromotionItem,  PROMOTION_LEVEL} from "./promotion.js";import {  consumeWeaponUse,  equipNextAvailableWeapon,  giveMissingDefaultWeapons} from "./inventory.js";import { setMapDirty } from "./gameArea.js";import { giveLuckyWeapon } from "./luckyWeapon.js";import { rollPromotionShop } from "./cpu.js";import { showToast } from "./utils.js";import { reportCapture } from "./victory.js";import { isMonster } from "./combat.js";import * as Units from "./units.js";// Unpromoted classes available for initial training/purchaseconst TRAINEES = ["Recruit", "Pupil", "Journeyman", "Trainee"];// Base (unpromoted) monster classes CPU monster armies can reinforce.// Promoted forms are added per-fort via addPromotedClassToFort when a unit promotes.const BASE_MONSTERS = [  "Revenant",  "Bonewalker",  "Bael",  "MautheDoog",  "Mogall",  "Gargoyle"];export const AVAILABLE_UNITS = {  1: [...TRAINEES],  2: [...TRAINEES],  // Team 3 is the monster army on the stock maps.  3: [...BASE_MONSTERS]};// True when this team's default reinforcement pool is monsters.export function isMonsterTeam(team) {  const pool = AVAILABLE_UNITS[team] ?? TRAINEES;  return pool.length > 0 && pool.every(name => isMonster({ className: name }));}export function getDefaultUnitsForTeam(team) {  return [...(AVAILABLE_UNITS[team] ?? TRAINEES)];}// Classes a team has unlocked for the shop (for example through braces).const UNLOCKED_UNITS = { 1: new Set(), 2: new Set(), 3: new Set() };export function unlockUnit(team, className) {  (UNLOCKED_UNITS[team] ??= new Set()).add(className);}export function isUnitUnlocked(team, className) {  return UNLOCKED_UNITS[team]?.has(className) ?? false;}export function getUnlockedUnits() {  const saved = {};  for (const [team, set] of Object.entries(UNLOCKED_UNITS)) {    saved[team] = [...set];  }  return saved;}export function setUnlockedUnits(saved = {}) {  for (const team of Object.keys(UNLOCKED_UNITS)) {    UNLOCKED_UNITS[team] = new Set(saved?.[team] ?? []);  }}// team -> { className: fromClass }. The class a team most recently// promoted from to reach each class. The shop builds bought units from it.const PROMOTION_SOURCES = { 1: {}, 2: {}, 3: {} };export function setPromotionSource(team, className, fromClass) {  (PROMOTION_SOURCES[team] ??= {})[className] = fromClass;}export function getPromotionSource(team, className) {  return PROMOTION_SOURCES[team]?.[className] ?? null;}export function getPromotionSources() {  const saved = {};  for (const [team, map] of Object.entries(PROMOTION_SOURCES)) {    saved[team] = { ...map };  }  return saved;}export function setPromotionSources(saved = {}) {  for (const team of Object.keys(PROMOTION_SOURCES)) {    const clean = {};    for (const [to, from] of Object.entries(saved?.[team] ?? {})) {      if (typeof Units[to] === "function" && typeof Units[from] === "function") {        clean[to] = from;      }    }    PROMOTION_SOURCES[team] = clean;  }}export function getAvailableUnits(team, fort = null) {  if (fort && fort.availableUnits && Array.isArray(fort.availableUnits)) {    return fort.availableUnits;  }  return AVAILABLE_UNITS[team] ?? TRAINEES;}export function addPromotedClassToFort(fort, promotedClassName) {  if (!fort || !promotedClassName) return;  fort.availableUnits ??= getDefaultUnitsForTeam(fort.owner);  if (!fort.availableUnits.includes(promotedClassName)) {    fort.availableUnits.push(promotedClassName);  }}// A class bought at the shop starts from scratch at this fort: no recorded// levels, promotion history or weapon EXP carried over from earlier units.// A promoted class is bought pre-built: the class the team last promoted// from, at PROMOTION_LEVEL, then promoted. `bought` tells createSpawn not// to copy that fort's weapon EXP record for the old class onto it.export function addPurchasedClassToFort(fort, className) {  if (!fort || !className) return;  addPromotedClassToFort(fort, className);  delete fort.unitLevels?.[className];  delete fort.promotions?.[className];  delete fort.weaponExpRecords?.[className];  const from = getPromotionSource(fort.owner, className);  if (from) {    fort.promotions ??= {};    fort.promotions[className] = {      from,      fromLevel: PROMOTION_LEVEL,      bought: true    };  }}export function isLord(unit) {  return unit?.className === "Lord" || unit?.className === "GreatLord";}function forEachTile(callback) {  for (let y = 0; y < gameGrid.length; y++) {    for (let x = 0; x < gameGrid[y].length; x++) {      callback(gameGrid[y][x], x, y);    }  }}export function getTilePosition(tile) {  let position = null;  forEachTile((t, x, y) => {    if (t === tile) position = { x, y };  });  return position;}function teamHasLord(team) {  let found = false;  forEachTile(tile => {    if (tile.unit && tile.unit.team === team && isLord(tile.unit)) {      found = true;    }  });  return found;}// ==========================================// POPULATION WEIGHT// ==========================================// Trainees 1, other units 2, promoted units 3.// Non-trainee magic users get +0.25.function computeWeight(unit) {  // Summoned phantoms never count toward a fort's population.  if (unit.className === "Phantom") return 0;if (TRAINEES.includes(unit.className)) {  return unit.className === "Pupil" ? 1.25 : 1;}  let weight = isPromoted(unit) ? 3 : 2;  if (unit.mag !== undefined && unit.mag !== null) weight += 0.25;  if (unit.terrFactor === "mount") weight += 0.25;  if (unit.terrFactor === "flier") weight += 0.5;    return weight;}const weightCache = new Map();// Accepts a unit or a class name.export function getUnitWeight(unitOrName) {  const name = typeof unitOrName === "string"    ? unitOrName    : unitOrName?.className;  if (!name) return 0;  if (weightCache.has(name)) return weightCache.get(name);  const unit = typeof unitOrName === "string"    ? (Units[name] ? new Units[name](1) : null)    : unitOrName;  if (!unit) return 0;  const weight = computeWeight(unit);  weightCache.set(name, weight);  return weight;}// Total weight of the owner's living units assigned to this fort.export function getFortPop(tile, position = getTilePosition(tile)) {  if (!tile || !position || tile.owner == null) return 0;  let pop = 0;  forEachTile(t => {    const unit = t.unit;    if (!unit || unit.team !== tile.owner || !unit.home) return;    if (unit.home.x === position.x && unit.home.y === position.y) {      pop += getUnitWeight(unit);    }  });  return pop;}// ==========================================// FORT INDEXES// ==========================================// Gives the fort the lowest unused number for its owner.function assignFortIndex(tile) {  const used = new Set();  forEachTile(t => {    if (      t !== tile &&      t.name === "Fort" &&      t.owner === tile.owner &&      t.index    ) {      used.add(t.index);    }  });  let index = 1;  while (used.has(index)) index++;  tile.index = index;}// Call once after the map and starting owners are set up.export function assignFortIndexes() {  forEachTile(tile => {    if (tile.name === "Fort" && tile.owner != null && !tile.index) {      assignFortIndex(tile);    }  });  setMapDirty(true);}// ==========================================// ASSIGNMENT// ==========================================function nearestOwned(name, team, x, y) {  let best = null;  let bestDistance = Infinity;  forEachTile((tile, tx, ty) => {    if (tile.name !== name || tile.owner !== team) return;    const distance = Math.abs(tx - x) + Math.abs(ty - y);    if (distance < bestDistance) {      bestDistance = distance;      best = { x: tx, y: ty };    }  });  return best;}// A unit only gets a home if it starts ON a fort its team owns (or, for a// lord, on his own throne). Everyone else is "fort 0": home = null, so they// never count toward a fort's population and no fort records their levels// or promotions.export function assignHome(unit, x, y) {  const tile = gameGrid[y]?.[x];  let home = null;  if (tile && tile.owner === unit.team) {    const onFort = tile.name === "Fort" && !isLord(unit);    const onThrone = tile.name === "Throne" && isLord(unit);    if (onFort || onThrone) home = { x, y };  }  unit.home = home;  return home;}// ==========================================// CAPTURING// ==========================================// The tile this unit could capture at (x, y), or null.// Any unit can capture a Fort; only Lords can capture a Throne.export function getCapturableTile(unit, x, y) {  const tile = gameGrid[y]?.[x];  if (!tile || !unit) return null;  if (tile.name === "Throne") {    return isLord(unit) && tile.owner !== unit.team ? tile : null;  }  if (tile.name === "Fort") {  	        return tile.owner !== unit.team ? tile : null;  }  return null;}export function captureTile(unit) {  let position = null;  forEachTile((t, x, y) => {    if (t.unit === unit) position = { x, y };  });  if (!position) return false;  const tile = getCapturableTile(unit, position.x, position.y);  if (!tile) return false;  const previousOwner = tile.owner;  tile.owner = unit.team;  tile.queue = [];  if (tile.name === "Throne") {    tile.timer = 0;    tile.absent = false;    tile.unitLevels = {};  }  if (tile.name === "Fort") {    tile.index = null;    tile.unitLevels = {};    // Captured forts use the new owner's default roster.    // Monster teams get BASE_MONSTERS; human teams get trainees.    // (Starting forts that only reinforce one class keep that list until captured.)    tile.availableUnits = getDefaultUnitsForTeam(unit.team);    tile.promotions = {};    tile.weaponExpRecords = {};    assignFortIndex(tile);  }  // unit.home is intentionally left unchanged.  setMapDirty(true);  reportCapture(tile, previousOwner, unit.team);  return true;}// ==========================================// FORT QUEUE// ==========================================export function canManageFort(tile, team) {  return (    tile?.name === "Fort" &&    tile.owner === team &&    tile.unit === undefined  );}export const MAX_QUEUE = 3;export function getQueue(tile) {  return (tile.queue ??= []);}// Adds to the back of the queue. False if full or the unit isn't offered.export function queueReinforcement(tile, className) {  if (!tile || tile.name !== "Fort" || tile.owner == null) return false;  if (!getAvailableUnits(tile.owner, tile).includes(className)) return false;  const queue = getQueue(tile);  if (queue.length >= MAX_QUEUE) return false;  queue.push(className);  return true;}export function dequeueLast(tile) {  return getQueue(tile).pop() ?? null;}export function clearQueue(tile) {  tile.queue = [];}// CPU: queue the available unit with the highest recorded level at each// owned fort. Ties are broken at random.// Higher = lower-level options are favored more as the gap widens.const VARIETY_BIAS = 0.2;// Hook for counter-picking later (e.g. read the enemy team's unit mix// and boost high-Str classes against a low-Def, high-Res army).// Return 1 for no preference.function getCounterMultiplier(team, className) {  return 1;}function pickWeighted(entries) {  const total = entries.reduce((sum, entry) => sum + entry.weight, 0);  let roll = Math.random() * total;  for (const entry of entries) {    roll -= entry.weight;    if (roll < 0) return entry.name;  }  return entries[entries.length - 1].name;}// CPU: queue a unit at each owned fort, chosen at random. A unit's// chance rises the further its level sits below the best option's.export function setCpuQueues(team) {  forEachTile(tile => {    if (tile.name !== "Fort" || tile.owner !== team) return;    const options = getAvailableUnits(team, tile);    if (options.length === 0) return;    const levelOf = name =>      (tile.unitLevels?.[name] ?? 1) +      TIER_LEVEL_BONUS[getClassTier(name)];    const levels = options.map(name => ({ name, level: levelOf(name) }));    const best = Math.max(...levels.map(entry => entry.level));    tile.queue = [      pickWeighted(        levels.map(({ name, level }) => ({          name,          weight:            (1 + (best - level) * VARIETY_BIAS) *            getCounterMultiplier(team, name)        }))      )    ];  });}// Raises the home fort or throne's recorded level for this unit's class// when the unit has out-leveled it.export function recordUnitLevel(unit) {  if (!unit?.home) return false;  const tile = gameGrid[unit.home.y]?.[unit.home.x];  if (!tile || tile.owner !== unit.team) {    return false;  }    if (tile.name === "Throne" && isLord(unit)) {    tile.unitLevels ??= {};    const recorded = tile.unitLevels[unit.className] ?? 1;    if (unit.lvl > recorded) {      tile.unitLevels[unit.className] = unit.lvl;      return true;    }    return false;  }  if (tile.name !== "Fort") {    return false;  }  if (!getAvailableUnits(unit.team, tile).includes(unit.className)) {    return false;  }  tile.unitLevels ??= {};  const recorded = tile.unitLevels[unit.className] ?? 1;  if (unit.lvl > recorded) {    tile.unitLevels[unit.className] = unit.lvl;    return true;  }  return false;}// Called when a unit levels up. Keeps the highest weapon EXP seen for// each weapon type, per class, at the unit's home stronghold.export function recordWeaponExp(unit) {  const home = unit?.home;  const tile = home && gameGrid[home.y]?.[home.x];  if (!tile || tile.owner !== unit.team) return false;  const isFort =    tile.name === "Fort" &&    getAvailableUnits(unit.team, tile).includes(unit.className);  const isThrone = tile.name === "Throne" && isLord(unit);  if (!isFort && !isThrone) return false;  tile.weaponExpRecords ??= {};  const record = (tile.weaponExpRecords[unit.className] ??= {});  let changed = false;  for (const [type, exp] of Object.entries(unit.weaponExp ?? {})) {    if (exp > (record[type] ?? 0)) {      record[type] = exp;      changed = true;    }  }  return changed;}// ==========================================// PROMOTION RECORDS// ==========================================// Remembers, on the unit's home fort, which class and level the// promotion came from. The latest promotion into a class wins.export function recordPromotion(unit, fromClass, fromLevel) {  const home = unit?.home;  const tile = home && gameGrid[home.y]?.[home.x];  if (!tile || tile.owner !== unit.team) return false;  if (tile.name === "Fort") {    addPromotedClassToFort(tile, unit.className);  } else if (tile.name !== "Throne" || !isLord(unit)) {    return false;  }  tile.promotions ??= {};  tile.promotions[unit.className] = { from: fromClass, fromLevel };  // The class it used to be starts over at this stronghold: level 1 and  // class-default weapon EXP (the record is deleted, so new spawns of that  // class start from the class's own defaults).  tile.unitLevels ??= {};  tile.unitLevels[fromClass] = 1;  if (tile.weaponExpRecords) delete tile.weaponExpRecords[fromClass];  // The new class keeps the unit's whole EXP log, including types its  // old class could not use.  recordWeaponExp(unit);  return true;}// The unit plus every same-class unit of its team from the same home// fort. Call it BEFORE the class changes.function getPromotionGroup(unit) {  const group = [unit];  const home = unit.home;  if (!home) return group;  forEachTile(tile => {    const other = tile.unit;    if (!other || other === unit) return;    if (other.team !== unit.team) return;    if (other.className !== unit.className) return;    if (other.home?.x !== home.x || other.home?.y !== home.y) return;    group.push(other);  });  return group;}// A unit's rank for cutting: its previous class level plus its current// level, so a freshly promoted unit (level 1) isn't treated as a rookie.function rankLevel(unit) {  return (unit.priorLevel ?? 0) + (unit.lvl ?? 1);}// Promoting makes units heavier, which can push the home fort over its// population cap. Removes units from the map until it fits. The promoting// unit is never removed. Units of the promoted class go first, lowest level// first; units of other classes only if that still isn't enough.export function enforcePopCap(keeper) {  const home = keeper?.home;  const tile = home && gameGrid[home.y]?.[home.x];  if (!tile || tile.name !== "Fort" || tile.owner !== keeper.team) return [];  const position = { x: home.x, y: home.y };  const cap = tile.popCap ?? 8;  let pop = getFortPop(tile, position);  if (pop <= cap) return [];  const residents = [];  forEachTile((t, x, y) => {    const unit = t.unit;    if (!unit || unit === keeper) return;    if (unit.team !== tile.owner || isLord(unit)) return;    if (unit.home?.x !== position.x || unit.home?.y !== position.y) return;    const weight = getUnitWeight(unit);    if (weight <= 0) return;   // phantoms don't count toward the cap    residents.push({      unit, x, y, weight,      sameClass: unit.className === keeper.className    });  });    residents.sort((a, b) =>    Number(b.sameClass) - Number(a.sameClass) ||    rankLevel(a.unit) - rankLevel(b.unit) ||    a.y - b.y ||    a.x - b.x  );  const removed = [];  for (const entry of residents) {    if (pop <= cap) break;    gameGrid[entry.y][entry.x].unit = undefined;    pop -= entry.weight;    removed.push(entry.unit);  }  if (removed.length > 0) {    showToast(      `${TEAM_NAMES[tile.owner]} Fort ${tile.index ?? "?"} over capacity: ` +      `removed ${removed.map(unit => unit.name).join(", ")}.`    );  }  return removed;}export function promoteUnit(unit, className) {  if (!getPromotionOptions(unit).includes(className)) return false;  // Only middle-tier classes spend an item, and only the one who triggers it.    const item = getClassTier(unit.className) === 1 && !isMonster(unit)    ? getPromotionItem(unit)    : null;  const fromClass = unit.className;  const fromLevel = unit.lvl;  const group = getPromotionGroup(unit);  if (!applyPromotion(unit, className)) return false;  // The team can now buy this class at the shop.  unlockUnit(unit.team, className);  setPromotionSource(unit.team, className, fromClass);  if (item) consumeWeaponUse(unit, item);  // The rest of the group: promotion gains only, no level or item check.  for (const other of group) {    if (other !== unit) applyPromotion(other, className);  }  recordPromotion(unit, fromClass, fromLevel);  enforcePopCap(unit);  return true;}// Checks eligibility, promotes, and records it at the home fort.// ==========================================// SPAWNING// ==========================================// A spawn drops items of weapon types its new class can't use (a Pupil's// Lightning on a Shaman). Weapon EXP stays logged in unit.weaponExp.function dropLockedItems(unit) {    unit.inventory = (unit.inventory ?? []).filter(item =>    item.type === "Consumable" ||    item.rank === null ||    Boolean(unit.weaponRanks?.[String(item.type).toLowerCase()])  );  equipNextAvailableWeapon(unit);}export function createSpawn(className, team, level, record, wexpRecords = null) {  const UnitClass = Units[className];  if (typeof UnitClass !== "function") return null;  // Reconstruct a promoted unit from its previous class.  if (record && typeof Units[record.from] === "function") {    const unit = new Units[record.from](team);    raiseToLevel(unit, record.fromLevel ?? 1);    if (!record.bought) {                                        applyWeaponExpRecord(unit, wexpRecords?.[record.from]);    }    if (applyPromotion(unit, className)) {      dropLockedItems(unit);      giveMissingDefaultWeapons(unit);      raiseToLevel(unit, level);      applyWeaponExpRecord(unit, wexpRecords?.[className]);      return unit;    }  }  // Ordinary units, or units without a usable promotion record.  const unit = new UnitClass(team);  raiseToLevel(unit, level);  applyWeaponExpRecord(unit, wexpRecords?.[className]);  return unit;}function spawnUnit(className, team, x, y, level = 1, record = null) {  const tile = gameGrid[y]?.[x];  if (!tile || tile.unit !== undefined) return null;    const unit = createSpawn(className, team, level, record, tile.weaponExpRecords);  if (!unit) return null;    giveLuckyWeapon(unit);  rollPromotionShop(unit);  unit.home = { x, y };  tile.unit = unit;  return unit;}// Called at the END of a side's phase.// Counts how long a team's Throne has been without a Lord.export function tickThrones(team) {  forEachTile(tile => {    if (tile.name !== "Throne" || tile.owner !== team) return;    if (teamHasLord(team)) {      tile.absent = false;      tile.timer = 0;      return;    }    if (!tile.absent) {      tile.absent = true;      tile.timer = 0;    } else {      tile.timer++;    }  });}// Called at the START of a side's phase.// Called at the START of a side's phase.export function spawnReinforcements(team) {  forEachTile((tile, x, y) => {    if (tile.owner !== team) return;    if (tile.name === "Fort") {      const queue = tile.queue ?? [];      const next = queue[0];      if (!next || tile.unit !== undefined) return;      // The queue keeps producing until the population cap is reached.      const pop = getFortPop(tile, { x, y });      const weight = getUnitWeight(next);      if (pop + weight > (tile.popCap ?? 8)) return;      const spawned = spawnUnit(        next,        team,        x,        y,        tile.unitLevels?.[next] ?? 1,        tile.promotions?.[next]      );      // The unit just built goes to the back of the queue.      if (spawned) queue.push(queue.shift());      return;    }    if (tile.name === "Throne") {      if (!tile.absent) return;      if (teamHasLord(team)) {        tile.absent = false;        tile.timer = 0;        return;      }      if (tile.timer + 1 < tile.respawnTurns) return;      if (tile.unit !== undefined) return;      const lordClass = tile.promotions?.GreatLord ? "GreatLord" : "Lord";      const lordLevel = tile.unitLevels?.[lordClass] ?? 1;      if (spawnUnit(lordClass, team, x, y, lordLevel, tile.promotions?.[lordClass])) {        tile.timer = 0;        tile.absent = false;      }    }  });  setMapDirty(true);}
+import {
+  gameGrid,
+  TEAM_NAMES
+} from "./gameState.js";
+import {
+  isPromoted,
+  raiseToLevel,
+  getClassTier,
+  applyWeaponExpRecord,
+  TIER_LEVEL_BONUS
+} from "./exp.js";
+import {
+  applyPromotion,
+  getPromotionOptions,
+  getPromotionItem,
+  PROMOTION_LEVEL
+} from "./promotion.js";
+import {
+  consumeWeaponUse,
+  equipNextAvailableWeapon,
+  giveMissingDefaultWeapons
+} from "./inventory.js";
+import { setMapDirty } from "./gameArea.js";
+import { giveLuckyWeapon } from "./luckyWeapon.js";
+import { rollPromotionShop } from "./cpu.js";
+import { showToast } from "./utils.js";
+import { reportCapture } from "./victory.js";
+import { isMonster } from "./combat.js";
+import { destroyTerrain } from "./terrainDestruction.js";
+import * as Units from "./units.js";
+
+// Unpromoted classes available for initial training/purchase.
+const TRAINEES = ["Recruit", "Pupil", "Journeyman", "Trainee"];
+
+// Base (unpromoted) monster classes CPU monster armies can reinforce.
+// Promoted forms are added per-fort via addPromotedClassToFort when a unit promotes.
+const BASE_MONSTERS = [
+  "Revenant",
+  "Bonewalker",
+  "Bael",
+  "MautheDoog",
+  "Mogall",
+  "Gargoyle"
+];
+
+export const AVAILABLE_UNITS = {
+  1: [...TRAINEES],
+  2: [...TRAINEES],
+  // Team 3 is the monster army on the stock maps.
+  3: [...BASE_MONSTERS]
+};
+
+// True when this team's default reinforcement pool is monsters.
+export function isMonsterTeam(team) {
+  const pool = AVAILABLE_UNITS[team] ?? TRAINEES;
+
+  return pool.length > 0 && pool.every(name => isMonster({ className: name }));
+}
+
+export function getDefaultUnitsForTeam(team) {
+  return [...(AVAILABLE_UNITS[team] ?? TRAINEES)];
+}
+
+// ==========================================
+// UNLOCKED UNITS AND PROMOTION SOURCES
+// ==========================================
+
+// Classes a team has unlocked for the shop (for example through braces).
+const UNLOCKED_UNITS = { 1: new Set(), 2: new Set(), 3: new Set() };
+
+export function unlockUnit(team, className) {
+  (UNLOCKED_UNITS[team] ??= new Set()).add(className);
+}
+
+export function isUnitUnlocked(team, className) {
+  return UNLOCKED_UNITS[team]?.has(className) ?? false;
+}
+
+export function getUnlockedUnits() {
+  const saved = {};
+
+  for (const [team, set] of Object.entries(UNLOCKED_UNITS)) {
+    saved[team] = [...set];
+  }
+
+  return saved;
+}
+
+export function setUnlockedUnits(saved = {}) {
+  for (const team of Object.keys(UNLOCKED_UNITS)) {
+    UNLOCKED_UNITS[team] = new Set(saved?.[team] ?? []);
+  }
+}
+
+// team -> { className: fromClass }. The class a team most recently
+// promoted from to reach each class. The shop builds bought units from it.
+const PROMOTION_SOURCES = { 1: {}, 2: {}, 3: {} };
+
+export function setPromotionSource(team, className, fromClass) {
+  (PROMOTION_SOURCES[team] ??= {})[className] = fromClass;
+}
+
+export function getPromotionSource(team, className) {
+  return PROMOTION_SOURCES[team]?.[className] ?? null;
+}
+
+export function getPromotionSources() {
+  const saved = {};
+
+  for (const [team, map] of Object.entries(PROMOTION_SOURCES)) {
+    saved[team] = { ...map };
+  }
+
+  return saved;
+}
+
+export function setPromotionSources(saved = {}) {
+  for (const team of Object.keys(PROMOTION_SOURCES)) {
+    const clean = {};
+
+    for (const [to, from] of Object.entries(saved?.[team] ?? {})) {
+      if (typeof Units[to] === "function" && typeof Units[from] === "function") {
+        clean[to] = from;
+      }
+    }
+
+    PROMOTION_SOURCES[team] = clean;
+  }
+}
+
+// ==========================================
+// FORT ROSTERS
+// ==========================================
+
+export function getAvailableUnits(team, fort = null) {
+  if (fort && fort.availableUnits && Array.isArray(fort.availableUnits)) {
+    return fort.availableUnits;
+  }
+
+  return AVAILABLE_UNITS[team] ?? TRAINEES;
+}
+
+export function addPromotedClassToFort(fort, promotedClassName) {
+  if (!fort || !promotedClassName) return;
+
+  fort.availableUnits ??= getDefaultUnitsForTeam(fort.owner);
+
+  if (!fort.availableUnits.includes(promotedClassName)) {
+    fort.availableUnits.push(promotedClassName);
+  }
+}
+
+// A class bought at the shop starts from scratch at this fort: no recorded
+// levels, promotion history or weapon EXP carried over from earlier units.
+// A promoted class is bought pre-built: the class the team last promoted
+// from, at PROMOTION_LEVEL, then promoted. `bought` tells createSpawn not
+// to copy that fort's weapon EXP record for the old class onto it.
+export function addPurchasedClassToFort(fort, className) {
+  if (!fort || !className) return;
+
+  addPromotedClassToFort(fort, className);
+
+  delete fort.unitLevels?.[className];
+  delete fort.promotions?.[className];
+  delete fort.weaponExpRecords?.[className];
+
+  const from = getPromotionSource(fort.owner, className);
+
+  if (from) {
+    fort.promotions ??= {};
+    fort.promotions[className] = {
+      from,
+      fromLevel: PROMOTION_LEVEL,
+      bought: true
+    };
+  }
+}
+
+// ==========================================
+// TILE HELPERS
+// ==========================================
+
+export function isLord(unit) {
+  return unit?.className === "Lord" || unit?.className === "GreatLord";
+}
+
+// Forts and Caves both hold a reinforcement queue.
+export const isSpawner = tile =>
+  tile?.name === "Fort" || tile?.name === "Cave";
+
+function forEachTile(callback) {
+  for (let y = 0; y < gameGrid.length; y++) {
+    for (let x = 0; x < gameGrid[y].length; x++) {
+      callback(gameGrid[y][x], x, y);
+    }
+  }
+}
+
+export function getTilePosition(tile) {
+  let position = null;
+
+  forEachTile((t, x, y) => {
+    if (t === tile) position = { x, y };
+  });
+
+  return position;
+}
+
+function teamHasLord(team) {
+  let found = false;
+
+  forEachTile(tile => {
+    if (tile.unit && tile.unit.team === team && isLord(tile.unit)) {
+      found = true;
+    }
+  });
+
+  return found;
+}
+
+// ==========================================
+// POPULATION WEIGHT
+// ==========================================
+
+// Trainees 1, other units 2, promoted units 3.
+// Non-trainee magic users get +0.25.
+function computeWeight(unit) {
+  // Summoned phantoms never count toward a fort's population.
+  if (unit.className === "Phantom") return 0;
+
+  if (TRAINEES.includes(unit.className)) {
+    return unit.className === "Pupil" ? 1.25 : 1;
+  }
+
+  let weight = isPromoted(unit) ? 3 : 2;
+
+  if (unit.mag !== undefined && unit.mag !== null) weight += 0.25;
+  if (unit.terrFactor === "mount") weight += 0.25;
+  if (unit.terrFactor === "flier") weight += 0.5;
+
+  return weight;
+}
+
+const weightCache = new Map();
+
+// Accepts a unit or a class name.
+export function getUnitWeight(unitOrName) {
+  const name = typeof unitOrName === "string"
+    ? unitOrName
+    : unitOrName?.className;
+
+  if (!name) return 0;
+
+  if (weightCache.has(name)) return weightCache.get(name);
+
+  const unit = typeof unitOrName === "string"
+    ? (Units[name] ? new Units[name](1) : null)
+    : unitOrName;
+
+  if (!unit) return 0;
+
+  const weight = computeWeight(unit);
+  weightCache.set(name, weight);
+
+  return weight;
+}
+
+// Total weight of the owner's living units assigned to this fort.
+export function getFortPop(tile, position = getTilePosition(tile)) {
+  if (!tile || !position || tile.owner == null) return 0;
+
+  let pop = 0;
+
+  forEachTile(t => {
+    const unit = t.unit;
+
+    if (!unit || unit.team !== tile.owner || !unit.home) return;
+
+    if (unit.home.x === position.x && unit.home.y === position.y) {
+      pop += getUnitWeight(unit);
+    }
+  });
+
+  return pop;
+}
+
+// ==========================================
+// FORT INDEXES
+// ==========================================
+
+// Gives the fort the lowest unused number for its owner.
+function assignFortIndex(tile) {
+  const used = new Set();
+
+  forEachTile(t => {
+    if (
+      t !== tile &&
+      t.name === "Fort" &&
+      t.owner === tile.owner &&
+      t.index
+    ) {
+      used.add(t.index);
+    }
+  });
+
+  let index = 1;
+
+  while (used.has(index)) index++;
+
+  tile.index = index;
+}
+
+// Call once after the map and starting owners are set up.
+export function assignFortIndexes() {
+  forEachTile(tile => {
+    if (tile.name === "Fort" && tile.owner != null && !tile.index) {
+      assignFortIndex(tile);
+    }
+  });
+
+  setMapDirty(true);
+}
+
+// ==========================================
+// ASSIGNMENT
+// ==========================================
+
+function nearestOwned(name, team, x, y) {
+  let best = null;
+  let bestDistance = Infinity;
+
+  forEachTile((tile, tx, ty) => {
+    if (tile.name !== name || tile.owner !== team) return;
+
+    const distance = Math.abs(tx - x) + Math.abs(ty - y);
+
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = { x: tx, y: ty };
+    }
+  });
+
+  return best;
+}
+
+// A unit only gets a home if it starts ON a fort or cave its team owns (or,
+// for a lord, on his own throne). Everyone else is "fort 0": home = null, so
+// they never count toward a fort's population and no fort records their
+// levels or promotions.
+export function assignHome(unit, x, y) {
+  const tile = gameGrid[y]?.[x];
+  let home = null;
+
+  if (tile && tile.owner === unit.team) {
+    const onSpawner = isSpawner(tile) && !isLord(unit);
+    const onThrone = tile.name === "Throne" && isLord(unit);
+
+    if (onSpawner || onThrone) home = { x, y };
+  }
+
+  unit.home = home;
+
+  return home;
+}
+
+// ==========================================
+// CAPTURING AND DESTROYING
+// ==========================================
+
+// The tile this unit could capture at (x, y), or null.
+// Any unit can capture a Fort; only Lords can capture a Throne.
+// Caves can't be captured, only destroyed.
+export function getCapturableTile(unit, x, y) {
+  const tile = gameGrid[y]?.[x];
+
+  if (!tile || !unit) return null;
+
+  if (tile.name === "Throne") {
+    return isLord(unit) && tile.owner !== unit.team ? tile : null;
+  }
+
+  if (tile.name === "Fort") {
+    return tile.owner !== unit.team ? tile : null;
+  }
+
+  return null;
+}
+
+export function captureTile(unit) {
+  let position = null;
+
+  forEachTile((t, x, y) => {
+    if (t.unit === unit) position = { x, y };
+  });
+
+  if (!position) return false;
+
+  const tile = getCapturableTile(unit, position.x, position.y);
+
+  if (!tile) return false;
+
+  const previousOwner = tile.owner;
+
+  tile.owner = unit.team;
+  tile.queue = [];
+
+  if (tile.name === "Throne") {
+    tile.timer = 0;
+    tile.absent = false;
+    tile.unitLevels = {};
+  }
+
+  if (tile.name === "Fort") {
+    tile.index = null;
+    tile.unitLevels = {};
+    // Captured forts use the new owner's default roster.
+    // Monster teams get BASE_MONSTERS; human teams get trainees.
+    // (Starting forts that only reinforce one class keep that list until captured.)
+    tile.availableUnits = getDefaultUnitsForTeam(unit.team);
+    tile.promotions = {};
+    tile.weaponExpRecords = {};
+    assignFortIndex(tile);
+  }
+
+  // unit.home is intentionally left unchanged.
+  setMapDirty(true);
+  reportCapture(tile, previousOwner, unit.team);
+
+  return true;
+}
+
+// The Cave at (x, y) this unit could destroy, or null. Any unit can destroy
+// a Cave that isn't its own team's.
+export function getDestroyableCave(unit, x, y) {
+  const tile = gameGrid[y]?.[x];
+
+  return tile?.name === "Cave" && tile.owner !== unit?.team ? tile : null;
+}
+
+// Turns the Cave under the unit into a Peak. The unit stays on the tile.
+export function destroyCave(unit) {
+  const position = getTilePosition(
+    gameGrid.flat().find(tile => tile.unit === unit)
+  );
+
+  if (!position || !getDestroyableCave(unit, position.x, position.y)) {
+    return false;
+  }
+
+  destroyTerrain(position.x, position.y);
+  setMapDirty(true);
+  showToast("Cave destroyed.");
+
+  return true;
+}
+
+// ==========================================
+// FORT QUEUE
+// ==========================================
+
+export function canManageFort(tile, team) {
+  return (
+    isSpawner(tile) &&
+    tile.owner === team &&
+    tile.unit === undefined
+  );
+}
+
+export const MAX_QUEUE = 3;
+
+export function getQueue(tile) {
+  return (tile.queue ??= []);
+}
+
+// Adds to the back of the queue. False if full or the unit isn't offered.
+export function queueReinforcement(tile, className) {
+  if (!isSpawner(tile) || tile.owner == null) return false;
+  if (!getAvailableUnits(tile.owner, tile).includes(className)) return false;
+
+  const queue = getQueue(tile);
+
+  if (queue.length >= MAX_QUEUE) return false;
+
+  queue.push(className);
+
+  return true;
+}
+
+export function dequeueLast(tile) {
+  return getQueue(tile).pop() ?? null;
+}
+
+export function clearQueue(tile) {
+  tile.queue = [];
+}
+
+// ==========================================
+// CPU QUEUES
+// ==========================================
+
+// Higher = lower-level options are favored more as the gap widens.
+const VARIETY_BIAS = 0.2;
+
+// Hook for counter-picking later (e.g. read the enemy team's unit mix
+// and boost high-Str classes against a low-Def, high-Res army).
+// Return 1 for no preference.
+function getCounterMultiplier(team, className) {
+  return 1;
+}
+
+function pickWeighted(entries) {
+  const total = entries.reduce((sum, entry) => sum + entry.weight, 0);
+  let roll = Math.random() * total;
+
+  for (const entry of entries) {
+    roll -= entry.weight;
+
+    if (roll < 0) return entry.name;
+  }
+
+  return entries[entries.length - 1].name;
+}
+
+// CPU: queue a unit at each owned fort or cave, chosen at random. A unit's
+// chance rises the further its level sits below the best option's.
+export function setCpuQueues(team) {
+  forEachTile(tile => {
+    if (!isSpawner(tile) || tile.owner !== team) return;
+
+    const options = getAvailableUnits(team, tile);
+
+    if (options.length === 0) return;
+
+    const levelOf = name =>
+      (tile.unitLevels?.[name] ?? 1) +
+      TIER_LEVEL_BONUS[getClassTier(name)];
+
+    const levels = options.map(name => ({ name, level: levelOf(name) }));
+    const best = Math.max(...levels.map(entry => entry.level));
+
+    tile.queue = [
+      pickWeighted(
+        levels.map(({ name, level }) => ({
+          name,
+          weight:
+            (1 + (best - level) * VARIETY_BIAS) *
+            getCounterMultiplier(team, name)
+        }))
+      )
+    ];
+  });
+}
+
+// ==========================================
+// STRONGHOLD RECORDS
+// ==========================================
+
+// Raises the home fort or throne's recorded level for this unit's class
+// when the unit has out-leveled it.
+export function recordUnitLevel(unit) {
+  if (!unit?.home) return false;
+
+  const tile = gameGrid[unit.home.y]?.[unit.home.x];
+
+  if (!tile || tile.owner !== unit.team) return false;
+
+  if (tile.name === "Throne" && isLord(unit)) {
+    tile.unitLevels ??= {};
+
+    const recorded = tile.unitLevels[unit.className] ?? 1;
+
+    if (unit.lvl > recorded) {
+      tile.unitLevels[unit.className] = unit.lvl;
+      return true;
+    }
+
+    return false;
+  }
+
+  if (!isSpawner(tile)) return false;
+
+  if (!getAvailableUnits(unit.team, tile).includes(unit.className)) {
+    return false;
+  }
+
+  tile.unitLevels ??= {};
+
+  const recorded = tile.unitLevels[unit.className] ?? 1;
+
+  if (unit.lvl > recorded) {
+    tile.unitLevels[unit.className] = unit.lvl;
+    return true;
+  }
+
+  return false;
+}
+
+// Called when a unit levels up. Keeps the highest weapon EXP seen for
+// each weapon type, per class, at the unit's home stronghold.
+export function recordWeaponExp(unit) {
+  const home = unit?.home;
+  const tile = home && gameGrid[home.y]?.[home.x];
+
+  if (!tile || tile.owner !== unit.team) return false;
+
+  const isSpawnerHome =
+    isSpawner(tile) &&
+    getAvailableUnits(unit.team, tile).includes(unit.className);
+  const isThrone = tile.name === "Throne" && isLord(unit);
+
+  if (!isSpawnerHome && !isThrone) return false;
+
+  tile.weaponExpRecords ??= {};
+
+  const record = (tile.weaponExpRecords[unit.className] ??= {});
+  let changed = false;
+
+  for (const [type, exp] of Object.entries(unit.weaponExp ?? {})) {
+    if (exp > (record[type] ?? 0)) {
+      record[type] = exp;
+      changed = true;
+    }
+  }
+
+  return changed;
+}
+
+// ==========================================
+// PROMOTION RECORDS
+// ==========================================
+
+// Remembers, on the unit's home fort, which class and level the
+// promotion came from. The latest promotion into a class wins.
+export function recordPromotion(unit, fromClass, fromLevel) {
+  const home = unit?.home;
+  const tile = home && gameGrid[home.y]?.[home.x];
+
+  if (!tile || tile.owner !== unit.team) return false;
+
+  if (isSpawner(tile)) {
+    addPromotedClassToFort(tile, unit.className);
+  } else if (tile.name !== "Throne" || !isLord(unit)) {
+    return false;
+  }
+
+  tile.promotions ??= {};
+  tile.promotions[unit.className] = { from: fromClass, fromLevel };
+
+  // The class it used to be starts over at this stronghold: level 1 and
+  // class-default weapon EXP (the record is deleted, so new spawns of that
+  // class start from the class's own defaults).
+  tile.unitLevels ??= {};
+  tile.unitLevels[fromClass] = 1;
+
+  if (tile.weaponExpRecords) delete tile.weaponExpRecords[fromClass];
+
+  // The new class keeps the unit's whole EXP log, including types its
+  // old class could not use.
+  recordWeaponExp(unit);
+
+  return true;
+}
+
+// The unit plus every same-class unit of its team from the same home
+// fort. Call it BEFORE the class changes.
+function getPromotionGroup(unit) {
+  const group = [unit];
+  const home = unit.home;
+
+  if (!home) return group;
+
+  forEachTile(tile => {
+    const other = tile.unit;
+
+    if (!other || other === unit) return;
+    if (other.team !== unit.team) return;
+    if (other.className !== unit.className) return;
+    if (other.home?.x !== home.x || other.home?.y !== home.y) return;
+
+    group.push(other);
+  });
+
+  return group;
+}
+
+// A unit's rank for cutting: its previous class level plus its current
+// level, so a freshly promoted unit (level 1) isn't treated as a rookie.
+function rankLevel(unit) {
+  return (unit.priorLevel ?? 0) + (unit.lvl ?? 1);
+}
+
+// Promoting makes units heavier, which can push the home fort over its
+// population cap. Removes units from the map until it fits. The promoting
+// unit is never removed. Units of the promoted class go first, lowest level
+// first; units of other classes only if that still isn't enough.
+// Caves have no cap, so they are skipped.
+export function enforcePopCap(keeper) {
+  const home = keeper?.home;
+  const tile = home && gameGrid[home.y]?.[home.x];
+
+  if (!tile || tile.name !== "Fort" || tile.owner !== keeper.team) return [];
+
+  const position = { x: home.x, y: home.y };
+  const cap = tile.popCap ?? 8;
+  let pop = getFortPop(tile, position);
+
+  if (pop <= cap) return [];
+
+  const residents = [];
+
+  forEachTile((t, x, y) => {
+    const unit = t.unit;
+
+    if (!unit || unit === keeper) return;
+    if (unit.team !== tile.owner || isLord(unit)) return;
+    if (unit.home?.x !== position.x || unit.home?.y !== position.y) return;
+
+    const weight = getUnitWeight(unit);
+
+    if (weight <= 0) return;   // phantoms don't count toward the cap
+
+    residents.push({
+      unit, x, y, weight,
+      sameClass: unit.className === keeper.className
+    });
+  });
+
+  residents.sort((a, b) =>
+    Number(b.sameClass) - Number(a.sameClass) ||
+    rankLevel(a.unit) - rankLevel(b.unit) ||
+    a.y - b.y ||
+    a.x - b.x
+  );
+
+  const removed = [];
+
+  for (const entry of residents) {
+    if (pop <= cap) break;
+
+    gameGrid[entry.y][entry.x].unit = undefined;
+    pop -= entry.weight;
+    removed.push(entry.unit);
+  }
+
+  if (removed.length > 0) {
+    showToast(
+      `${TEAM_NAMES[tile.owner]} Fort ${tile.index ?? "?"} over capacity: ` +
+      `removed ${removed.map(unit => unit.name).join(", ")}.`
+    );
+  }
+
+  return removed;
+}
+
+// Checks eligibility, promotes, and records it at the home fort.
+export function promoteUnit(unit, className) {
+  if (!getPromotionOptions(unit).includes(className)) return false;
+
+  // Only middle-tier classes spend an item, and only the one who triggers it.
+  const item = getClassTier(unit.className) === 1 && !isMonster(unit)
+    ? getPromotionItem(unit)
+    : null;
+
+  const fromClass = unit.className;
+  const fromLevel = unit.lvl;
+  const group = getPromotionGroup(unit);
+
+  if (!applyPromotion(unit, className)) return false;
+
+  // The team can now buy this class at the shop.
+  unlockUnit(unit.team, className);
+  setPromotionSource(unit.team, className, fromClass);
+
+  if (item) consumeWeaponUse(unit, item);
+
+  // The rest of the group: promotion gains only, no level or item check.
+  for (const other of group) {
+    if (other !== unit) applyPromotion(other, className);
+  }
+
+  recordPromotion(unit, fromClass, fromLevel);
+  enforcePopCap(unit);
+
+  return true;
+}
+
+// ==========================================
+// SPAWNING
+// ==========================================
+
+// A spawn drops items of weapon types its new class can't use (a Pupil's
+// Lightning on a Shaman). Weapon EXP stays logged in unit.weaponExp.
+function dropLockedItems(unit) {
+  unit.inventory = (unit.inventory ?? []).filter(item =>
+    item.type === "Consumable" ||
+    item.rank === null ||
+    Boolean(unit.weaponRanks?.[String(item.type).toLowerCase()])
+  );
+
+  equipNextAvailableWeapon(unit);
+}
+
+export function createSpawn(className, team, level, record, wexpRecords = null) {
+  const UnitClass = Units[className];
+
+  if (typeof UnitClass !== "function") return null;
+
+  // Reconstruct a promoted unit from its previous class.
+  if (record && typeof Units[record.from] === "function") {
+    const unit = new Units[record.from](team);
+
+    raiseToLevel(unit, record.fromLevel ?? 1);
+
+    if (!record.bought) {
+      applyWeaponExpRecord(unit, wexpRecords?.[record.from]);
+    }
+
+    if (applyPromotion(unit, className)) {
+      dropLockedItems(unit);
+      giveMissingDefaultWeapons(unit);
+      raiseToLevel(unit, level);
+      applyWeaponExpRecord(unit, wexpRecords?.[className]);
+
+      return unit;
+    }
+  }
+
+  // Ordinary units, or units without a usable promotion record.
+  const unit = new UnitClass(team);
+
+  raiseToLevel(unit, level);
+  applyWeaponExpRecord(unit, wexpRecords?.[className]);
+
+  return unit;
+}
+
+function spawnUnit(className, team, x, y, level = 1, record = null) {
+  const tile = gameGrid[y]?.[x];
+
+  if (!tile || tile.unit !== undefined) return null;
+
+  const unit = createSpawn(className, team, level, record, tile.weaponExpRecords);
+
+  if (!unit) return null;
+
+  giveLuckyWeapon(unit);
+  rollPromotionShop(unit);
+
+  unit.home = { x, y };
+  tile.unit = unit;
+
+  return unit;
+}
+
+// Called at the END of a side's phase.
+// Counts how long a team's Throne has been without a Lord.
+export function tickThrones(team) {
+  forEachTile(tile => {
+    if (tile.name !== "Throne" || tile.owner !== team) return;
+
+    if (teamHasLord(team)) {
+      tile.absent = false;
+      tile.timer = 0;
+      return;
+    }
+
+    if (!tile.absent) {
+      tile.absent = true;
+      tile.timer = 0;
+    } else {
+      tile.timer++;
+    }
+  });
+}
+
+// Called at the START of a side's phase.
+export function spawnReinforcements(team) {
+  forEachTile((tile, x, y) => {
+    if (tile.owner !== team) return;
+
+    if (isSpawner(tile)) {
+      const queue = tile.queue ?? [];
+      const next = queue[0];
+
+      if (!next || tile.unit !== undefined) return;
+
+      // Forts keep producing until the population cap is reached.
+      // Caves have no cap and spawn endlessly.
+      if (tile.name === "Fort") {
+        const pop = getFortPop(tile, { x, y });
+        const weight = getUnitWeight(next);
+
+        if (pop + weight > (tile.popCap ?? 8)) return;
+      }
+
+      const spawned = spawnUnit(
+        next,
+        team,
+        x,
+        y,
+        tile.unitLevels?.[next] ?? 1,
+        tile.promotions?.[next]
+      );
+
+      // The unit just built goes to the back of the queue.
+      if (spawned) queue.push(queue.shift());
+
+      return;
+    }
+
+    if (tile.name === "Throne") {
+      if (!tile.absent) return;
+
+      if (teamHasLord(team)) {
+        tile.absent = false;
+        tile.timer = 0;
+        return;
+      }
+
+      if (tile.timer + 1 < tile.respawnTurns) return;
+      if (tile.unit !== undefined) return;
+
+      const lordClass = tile.promotions?.GreatLord ? "GreatLord" : "Lord";
+      const lordLevel = tile.unitLevels?.[lordClass] ?? 1;
+
+      if (spawnUnit(lordClass, team, x, y, lordLevel, tile.promotions?.[lordClass])) {
+        tile.timer = 0;
+        tile.absent = false;
+      }
+    }
+  });
+
+  setMapDirty(true);
+}

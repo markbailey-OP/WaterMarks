@@ -36,7 +36,9 @@ import {
   getUnitWeight,
   addPromotedClassToFort,
   addPurchasedClassToFort,
-  unlockUnit
+  unlockUnit,
+  getDestroyableCave,
+  destroyCave
 } from "./strongholds.js";
 import { 
   getPurchasableUnits, 
@@ -229,7 +231,8 @@ function isSpawnTile(unit, x, y) {
 
   if (!tile || tile.owner !== unit.team) return false;
 
-  return tile.name === "Fort" || (tile.name === "Throne" && !isLord(unit));
+return tile.name === "Fort" || tile.name === "Cave" ||
+  (tile.name === "Throne" && !isLord(unit));
 }
 
 function getBridges() {
@@ -562,6 +565,15 @@ function getObjectives(unit, danger) {
       objectives.push({ x, y });
       return;
     }
+
+	// attack units walk to enemy caves. Put this before the
+	if (
+	  tile.name === "Cave" && tile.owner != null &&
+	  tile.owner !== team && !lordUnit
+	) {
+	  objectives.push({ x, y });
+	  return;
+	}
 
     if (lordUnit || tile.name !== "Fort") return;
 
@@ -1675,9 +1687,11 @@ async function takeUnitTurn(unit, ctx) {
 
   const now = getUnitPosition(unit);
 
-  if (now && getCapturableTile(unit, now.x, now.y)) {
-    captureTile(unit);
-  }
+	if (now && getCapturableTile(unit, now.x, now.y)) {
+	  captureTile(unit);
+	} else if (now && getDestroyableCave(unit, now.x, now.y)) {
+	  destroyCave(unit);
+	}
 }
 
 // ==========================================

@@ -50,7 +50,8 @@ import {
   beginMovedSteal,
   beginMovedSummon,
   beginMovedBallista,
-  beginMovedExitBallista
+  beginMovedExitBallista,
+  destroyAtDestination
 } from "./menus/movementMenu.js";
 import {
   checkStats,
@@ -405,6 +406,7 @@ const CLICK_ACTIONS = {
   beginAttack,
   beginMovedStaff,
   captureTile: captureAtDestination,
+  destroyCave: destroyAtDestination,
   beginMovedPromote,
   beginMovedShop,
   beginMovedTrade,

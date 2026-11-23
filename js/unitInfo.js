@@ -15,6 +15,7 @@ export function getHomeLabel(unit) {
 
   if (!tile || tile.owner !== unit.team) return "—";
   if (tile.name === "Throne") return "Throne";
+  if (tile.name === "Cave") return "Cave";
 
   return tile.index ?? "—";
 }
