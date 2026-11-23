@@ -26,7 +26,9 @@ import {
   captureTile,
   promoteUnit,
   unlockUnit,
-  isLord
+  isLord,
+  getDestroyableCave,
+  destroyCave
 } from "../strongholds.js";
 import { 
   openShop, 
@@ -419,6 +421,15 @@ case "exit-ballista": {
       if (captureTile(unit)) waitWithUnit();
       break;
     }
+    
+	case "destroy": {
+	  const unit = getInspectedUnit();
+	
+	  if (!unit || !canActWithUnit(unit)) return;
+	
+	  if (destroyCave(unit)) waitWithUnit();
+	  break;
+	}
     
     case "promote":
   showPromotionChoices();
@@ -815,6 +826,8 @@ function renderUnitOptions() {
   const canStaff = canAct && canUseStaff(unit);
   const canCapture =
     canAct && position && getCapturableTile(unit, position.x, position.y);
+  const canDestroy =
+    canAct && position && getDestroyableCave(unit, position.x, position.y);
   const canShop = canAct && position && isShopTile(position.x, position.y);
   const canPromote = canAct && getPromotionOptions(unit).length > 0;
   const canTradeNow =
@@ -839,6 +852,7 @@ function renderUnitOptions() {
     ${canSummonNow ? `<button type="button" data-action="summon">SUMMON</button>` : ""}
     ${canStaff ? `<button type="button" data-action="staff">STAFF</button>` : ""}
     ${canCapture ? `<button type="button" data-action="capture">CAPTURE</button>` : ""}
+    ${canDestroy ? `<button type="button" data-action="destroy">DESTROY</button>` : ""}
     ${canPromote ? `<button type="button" data-action="promote">PROMOTE</button>` : ""}
     ${canShop ? `<button type="button" data-action="shop">SHOP</button>` : ""}
     ${canTradeNow ? `<button type="button" data-action="trade">TRADE</button>` : ""}

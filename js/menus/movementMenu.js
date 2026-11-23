@@ -23,7 +23,9 @@ import {
 import { 
   getCapturableTile, 
   captureTile, 
-  promoteUnit
+  promoteUnit,
+  getDestroyableCave,
+  destroyCave
 } from "../strongholds.js";
 
 import { 
@@ -186,6 +188,7 @@ export function refreshMoveMenu() {
   show("stealOption", canSteal(unit, endX, endY));
   show("staffOption", canUseHealingStaff(unit, endX, endY));
   show("captureOption", Boolean(getCapturableTile(unit, endX, endY)));
+  show("destroyOption", Boolean(getDestroyableCave(unit, endX, endY)));
   show("shopOption", isShopTile(endX, endY));
   show("promoteOption", getPromotionOptions(unit).length > 0);
   show("tradeOption", canTrade(unit, endX, endY));
@@ -297,6 +300,15 @@ export function beginMovedSummon() {
     refreshMoveMenu();
     updateMenuHighlight();
   });
+}
+
+export function destroyAtDestination() {
+  const move = getPendingMove();
+
+  if (!move) return;
+  if (!destroyCave(move.unit)) return;
+
+  confirmMove();   // destroying ends the unit's action
 }
 
 export function confirmMove() {

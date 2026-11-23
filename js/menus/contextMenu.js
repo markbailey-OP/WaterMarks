@@ -97,7 +97,7 @@ function showRootMenu() {
   const fortOption = contextFort
     ? `
       <button type="button" data-action="fort">
-        FORT
+        ${contextFort.name === "Cave" ? "CAVE" : "FORT"}
       </button>
     `
     : "";
@@ -213,10 +213,11 @@ function showFortMenu(keepIndex = false) {
   const full = queue.length >= MAX_QUEUE;
   const units = getAvailableUnits(side, contextFort);
   const pop = getFortPop(contextFort);
-  const cap = contextFort?.popCap ?? 10;
+  const cap = contextFort?.name === "Cave" ? "∞" : (contextFort?.popCap ?? 10);
 
   contextMenuElement.innerHTML = `
-    <h3>FORT ${escapeHtml(contextFort?.index ?? "")}</h3>
+    <h3>${contextFort?.name === "Cave" ? "CAVE" : "FORT " 
+          + escapeHtml(contextFort?.index ?? "")}</h3>
 
     <p style="margin:2px 0; font-size:11px;">
       Pop: ${escapeHtml(pop)}/${escapeHtml(cap)}
