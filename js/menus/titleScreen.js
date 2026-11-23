@@ -1,7 +1,8 @@
 import { pushInputContext, popInputContext } from "../input.js";
 import { THEMES, getTheme, setTheme } from "../settings.js";
 import { escapeHtml } from "../utils.js";
-import { getMapList } from "../map.js";
+import { getMapList, loadMap, HUMAN_TEAMS } from "../map.js";
+import { TEAM_NAMES, TEAM_COUNT } from "../gameState.js";
 
 // ==========================================
 // STATE
@@ -13,6 +14,9 @@ let screen = "main";       // "main" or "settings"
 let selectedIndex = 0;
 let busy = false;
 let clickAttached = false;
+let chosenMap = null;
+let allowedTeams = [];
+let humanPicks = new Set();
 
 const rootElement = () => document.getElementById("titleScreen");
 const menuElement = () => document.getElementById("titleMenu");
@@ -61,8 +65,9 @@ const menuInput = {
   right: () => moveSelection(1),
   select: () => getButtons()[selectedIndex]?.click(),
   back: () => {
-    if (screen !== "main") showScreen("main");
-  }
+  if (screen === "teams") showScreen("maps");
+  else if (screen !== "main") showScreen("main");
+}
 };
 
 // ==========================================
@@ -92,6 +97,18 @@ function render() {
           ${escapeHtml(map.name)}
         </button>`).join("") +
       `<button type="button" data-action="back">BACK</button>`;
+  } else if (screen === "teams") {
+  menu.innerHTML =
+    `<h2 class="title-heading">CONTROLLERS</h2>` +
+    allowedTeams.map(team => `
+      <button type="button" data-action="toggle-team"
+              data-team="${team}">
+        ${escapeHtml(TEAM_NAMES[team])}:
+        ${humanPicks.has(team) ? "HUMAN" : "CPU"}
+      </button>`).join("") +
+    `<p class="title-sub">Other teams are always CPU.</p>
+     <button type="button" data-action="start">START</button>
+     <button type="button" data-action="back">BACK</button>`;
   } else {
     menu.innerHTML = `
       <button type="button" data-action="new">NEW GAME</button>
@@ -119,14 +136,67 @@ function showScreen(next) {
 // ACTIONS
 // ==========================================
 
-async function startMap(id) {
+async function pickMap(id) {
   if (busy) return;
 
   busy = true;
   setMessage("");
 
   try {
-    await handlers.onNewGame(id);
+    await loadMap(id);
+  } catch (error) {
+    console.error("Map load failed:", error);
+    setMessage(error?.message || "Could not load that map.");
+    busy = false;
+    return;
+  }
+
+  busy = false;
+
+  allowedTeams = HUMAN_TEAMS.filter(
+    team => Number.isInteger(team) && team >= 1 && team <= TEAM_COUNT
+  );
+
+  if (allowedTeams.length === 0) {
+    setMessage("That map has no human-controlled teams.");
+    return;
+  }
+
+  chosenMap = id;
+  humanPicks = new Set(
+    allowedTeams.includes(1) ? [1] : [allowedTeams[0]]
+  );
+
+  // Nothing to choose: start straight away.
+  if (allowedTeams.length === 1) {
+    startGame();
+    return;
+  }
+
+  showScreen("teams");
+}
+
+function toggleTeam(team) {
+  if (humanPicks.has(team)) humanPicks.delete(team);
+  else humanPicks.add(team);
+
+  setMessage("");
+  render();
+}
+
+async function startGame() {
+  if (busy) return;
+
+  if (humanPicks.size === 0) {
+    setMessage("Pick at least one human team.");
+    return;
+  }
+
+  busy = true;
+  setMessage("");
+
+  try {
+    await handlers.onNewGame(chosenMap, [...humanPicks]);
   } catch (error) {
     console.error("New game failed:", error);
     setMessage(error?.message || "Could not start that map.");
@@ -159,8 +229,20 @@ function handleAction(action, button) {
       break;
 
     case "map":
-      startMap(button.dataset.map);
-      break;
+	  pickMap(button.dataset.map);
+	  break;
+	
+	case "toggle-team":
+	  toggleTeam(Number(button.dataset.team));
+	  break;
+	
+	case "start":
+	  startGame();
+	  break;
+	
+	case "back":
+	  showScreen(screen === "teams" ? "maps" : "main");
+	  break;
 
     case "load":
       loadSave();
@@ -175,9 +257,6 @@ function handleAction(action, button) {
       render();
       break;
 
-    case "back":
-      showScreen("main");
-      break;
   }
 }
 
