@@ -1,5 +1,5 @@
 export const MAP_LAYOUT = `
-$	F	F	O	F	F	#	T	.	.	.	.	T	T	O	T	T	.	T	T	M	M	M	P	P	P	P	O
+$	h	F	O	F	F	#	T	.	.	.	.	T	T	O	T	T	.	T	T	M	M	M	P	P	P	P	C
 F	H	F	F	F	F	#	.	.	.	.	T	T	T	T	T	T	.	.	T	M	M	M	P	P	P	P	P
 F	F	O	O	F	F	#	.	.	T	.	.	T	T	T	T	T	T	.	T	M	M	M	M	P	P	P	P
 O	F	O	O	F	F	F	.	.	.	.	.	T	.	.	.	T	.	.	T	M	M	M	M	M	P	P	P
@@ -18,10 +18,10 @@ P	P	P	S	P	P	P	P	P	P	P	P	P	.	.	P	P	M	M	D	D	D	D	D	D	S	D	D
 P	P	P	S	P	P	P	P	P	P	P	P	P	.	.	P	P	M	M	D	D	D	D	D	D	D	D	D
 M	M	M	S	M	M	M	M	M	M	M	P	P	.	.	P	P	M	M	D	D	D	D	D	D	D	D	D
 M	M	M	S	M	M	M	M	M	M	M	P	P	.	.	P	P	M	M	D	D	D	D	D	D	D	D	D
-D	D	D	O	M	D	D	D	D	M	M	P	P	.	.	P	P	M	M	D	D	D	D	D	D	D	D	D
+D	D	D	C	M	D	D	D	D	M	M	P	P	.	.	P	P	M	M	D	D	D	D	D	D	D	D	D
 D	D	D	M	D	D	D	D	D	M	M	P	P	.	.	P	P	M	M	D	D	D	D	D	D	D	D	D
 D	D	D	D	D	D	D	D	D	M	M	P	P	.	.	P	P	M	M	D	D	D	D	D	M	D	D	D
-D	D	D	D	D	D	D	D	D	M	M	P	P	.	.	P	P	M	M	D	D	D	D	M	O	D	D	D
+D	D	D	D	D	D	D	D	D	M	M	P	P	.	.	P	P	M	M	D	D	D	D	M	C	D	D	D
 D	D	D	D	D	D	D	D	D	M	M	P	P	.	.	P	P	M	M	M	M	M	M	M	S	M	M	M
 D	D	D	D	D	D	D	D	D	M	M	P	P	.	.	P	P	M	M	M	M	M	M	M	S	M	M	M
 D	D	D	D	D	D	D	D	D	M	M	P	P	.	.	P	P	P	P	P	P	P	P	P	S	P	P	P
@@ -39,10 +39,13 @@ M	M	M	M	M	M	M	S	T	T	T	.	.	.	.	.	.	.	T	.	.	#	#	#	F	#	#	#
 M	M	M	M	M	M	M	M	T	.	.	.	.	T	.	.	.	.	.	.	.	#	F	F	F	F	F	F
 P	P	M	M	M	M	M	M	T	.	.	.	.	.	T	.	.	.	.	.	.	#	F	F	F	F	F	F
 P	P	P	M	M	M	M	M	T	.	.	.	T	.	.	T	.	.	.	.	.	F	F	F	O	O	F	O
-P	P	P	P	M	M	M	M	T	.	T	T	T	T	T	T	.	.	T	.	.	#	F	F	O	O	F	F
+P	P	P	P	M	M	M	M	T	.	T	T	T	T	T	T	.	.	T	.	.	#	F	F	O	O	h	F
 P	P	P	P	P	M	M	M	T	.	.	T	T	T	T	T	T	.	.	.	.	#	F	F	F	F	H	F
-O	P	P	P	P	M	M	M	T	T	.	T	T	O	T	T	.	.	.	.	T	#	F	F	O	F	F	$
+C	P	P	P	P	M	M	M	T	T	.	T	T	O	T	T	.	.	.	.	T	#	F	F	O	F	F	$
 `;
+
+// Teams the player may choose to control. Others are always CPU.
+export const HUMAN_TEAMS = [1, 2];
 
 // Starting owners (team 1 = Blue, team 2 = Red).
 // Forts within walls belong to the team of the lord.

@@ -22,13 +22,16 @@ F	F	#	F	F	#	.	.	~	.	T	.	.	.	.	T	.	.	.	.	.	.	.	~	T	.	.	.	.	#	F	F	#	F	F
 .	.	.	.	.	.	.	.	T	T	.	.	.	.	.	.	T	T	.	.	.	.	T	.	.	~	~	.	.	.	.	.	.	.	.
 T	.	.	.	.	.	.	.	.	.	.	T	.	.	.	.	.	T	T	.	.	.	T	.	.	.	~	.	.	.	.	.	.	.	T
 M	M	M	M	M	M	.	.	.	.	.	T	T	.	.	.	.	.	.	.	.	.	.	.	.	.	~	T	.	M	M	M	M	M	M
-O	.	.	O	M	M	M	M	M	M	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	M	M	M	M	M	M	O	.	.	O
+O	.	.	C	M	M	M	M	M	M	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	M	M	M	M	M	M	C	.	.	O
 M	.	.	.	.	.	T	T	.	T	.	.	.	.	.	.	.	.	.	.	.	T	T	.	.	T	T	T	T	.	.	.	.	.	M
 M	M	M	M	M	M	T	T	T	T	.	.	.	T	#	#	#	#	#	#	#	.	.	.	.	.	T	T	T	M	M	M	M	M	M
 P	P	P	P	M	M	M	.	T	.	.	.	.	.	.	O	.	h	.	O	.	.	.	.	.	.	.	.	M	M	M	P	P	P	P
 P	P	P	P	P	M	M	M	.	.	.	T	.	.	O	.	O	H	O	.	O	.	.	.	.	.	.	M	M	M	P	P	P	P	P
 P	P	P	P	P	M	M	.	.	.	T	.	.	.	.	O	.	$	.	O	.	.	.	T	.	.	.	.	M	M	P	P	P	P	P
 `;
+
+// Teams the player may choose to control. Others are always CPU.
+export const HUMAN_TEAMS = [1, 2];
 
 // Starting owners (team 1 = Blue, team 2 = Red).
 // Forts within walls belong to the team of the lord.
