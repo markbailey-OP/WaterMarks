@@ -800,38 +800,89 @@ function dropLockedItems(unit) {
   equipNextAvailableWeapon(unit);
 }
 
-export function createSpawn(className, team, level, record, wexpRecords = null) {
+// A chain longer than this means the records loop back on themselves.
+const MAX_CHAIN = 4;
+
+// The promotion record for a class at this stronghold. A bought class with
+// no record of its own falls back to the team's last promotion source.
+function recordFor(className, team, promotions, bought) {
+  const own = promotions?.[className];
+
+  if (own) return own;
+  if (!bought) return null;
+
+  const from = getPromotionSource(team, className);
+
+  return from
+    ? { from, fromLevel: PROMOTION_LEVEL, bought: true }
+    : null;
+}
+
+// Builds `className` at `level`. When a record says where the class came
+// from, that class is built first (itself recursively), so the unit carries
+// the gains of every promotion on the way: trainee, middle tier, promoted.
+function buildUnit(
+  className, team, level, promotions, wexpRecords,
+  bought = false, depth = 0, explicit = null
+) {
   const UnitClass = Units[className];
 
   if (typeof UnitClass !== "function") return null;
 
-  // Reconstruct a promoted unit from its previous class.
-  if (record && typeof Units[record.from] === "function") {
-    const unit = new Units[record.from](team);
+  const record = explicit ?? recordFor(className, team, promotions, bought);
+  const From = record && Units[record.from];
 
-    raiseToLevel(unit, record.fromLevel ?? 1);
+  if (
+    depth < MAX_CHAIN &&
+    typeof From === "function" &&
+    record.from !== className
+  ) {
+    const isBought = bought || record.bought === true;
 
-    if (!record.bought) {
-      applyWeaponExpRecord(unit, wexpRecords?.[record.from]);
-    }
+    // The earlier class must have reached promotion level.
+    const fromLevel = Math.max(
+      record.fromLevel ?? PROMOTION_LEVEL,
+      PROMOTION_LEVEL
+    );
 
-    if (applyPromotion(unit, className)) {
+    const unit = buildUnit(
+      record.from, team, fromLevel, promotions, wexpRecords,
+      isBought, depth + 1
+    );
+
+    if (unit && applyPromotion(unit, className)) {
       dropLockedItems(unit);
       giveMissingDefaultWeapons(unit);
       raiseToLevel(unit, level);
-      applyWeaponExpRecord(unit, wexpRecords?.[className]);
+
+      // Bought units start from scratch: no weapon EXP from earlier classes.
+      if (depth === 0 || !isBought) {
+        applyWeaponExpRecord(unit, wexpRecords?.[className]);
+      }
 
       return unit;
     }
   }
 
-  // Ordinary units, or units without a usable promotion record.
+  // No usable record: an ordinary unit of this class.
   const unit = new UnitClass(team);
 
   raiseToLevel(unit, level);
-  applyWeaponExpRecord(unit, wexpRecords?.[className]);
+
+  if (depth === 0 || !bought) {
+    applyWeaponExpRecord(unit, wexpRecords?.[className]);
+  }
 
   return unit;
+}
+
+export function createSpawn(
+  className, team, level, record, wexpRecords = null, promotions = null
+) {
+  return buildUnit(
+    className, team, level, promotions, wexpRecords,
+    record?.bought === true, 0, record
+  );
 }
 
 function spawnUnit(className, team, x, y, level = 1, record = null) {
@@ -839,7 +890,10 @@ function spawnUnit(className, team, x, y, level = 1, record = null) {
 
   if (!tile || tile.unit !== undefined) return null;
 
-  const unit = createSpawn(className, team, level, record, tile.weaponExpRecords);
+  const unit = createSpawn(
+  className, team, level, record,
+  tile.weaponExpRecords, tile.promotions
+);
 
   if (!unit) return null;
 
