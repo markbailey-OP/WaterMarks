@@ -223,7 +223,7 @@ function getBallistaReloadCost(ballista) {
   const worth = Number.isFinite(ballista.worth) && ballista.worth > 0
     ? ballista.worth
     : 1000;
-  return Math.floor(worth * missing / maxUses);
+  return Math.floor(worth * missing / maxUses/2); //reloading costs half.
 }
 
 // Ballistae on tiles occupied by this team that are missing at least one use.
