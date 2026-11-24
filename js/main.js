@@ -25,7 +25,8 @@ import {
   assignFortIndexes,
   createSpawn,
   recordPromotion,
-  recordUnitLevel
+  recordUnitLevel,
+  isSpawner
 } from "./strongholds.js";
 import { 
   isCpuSide, 
@@ -206,12 +207,12 @@ function placeStartingUnits() {
     gameGrid[y][x].unit = newUnit;
     assignHome(newUnit, x, y);
 
-    // A starting fort only reinforces its starting unit type.
-    const startTile = gameGrid[y][x];
-
-    if (startTile.name === "Fort") {
-      startTile.availableUnits = [newUnit.className];
-    }
+	// A starting fort or cave only reinforces its starting unit type.
+	const startTile = gameGrid[y][x];
+	
+	if (isSpawner(startTile)) {
+	  startTile.availableUnits = [newUnit.className];
+	}
 
     // Record the promotion and level at the home fort.
     if (promotedFrom) {
