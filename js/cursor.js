@@ -186,7 +186,7 @@ export class Cursor {
 
     // Keep normal menu restrictions.
     if (
-      document.getElementById("moveMenu")?.style.display === "block" ||
+      document.getElementById("attackMenu")?.style.display === "block" ||
       document.getElementById("unitMenu")?.style.display === "block"
     ) {
       return;
@@ -239,7 +239,7 @@ export class Cursor {
       sel.bool ||
       this.isChoosingAttackTarget() ||
       this.isChoosingStaffTarget() ||
-      document.getElementById("moveMenu")?.style.display === "block" ||
+      document.getElementById("attackMenu")?.style.display === "block" ||
       document.getElementById("unitMenu")?.style.display === "block"
     ) {
       return;
@@ -358,13 +358,8 @@ export class Cursor {
 
     if (!validMove) return;
 
-    requestMove(
-      selectedUnit,
-      startX,
-      startY,
-      this.x,
-      this.y
-    );
+    requestMove(selectedUnit, startX, startY, this.x, this.y);
+    openUnitMenu(selectedUnit);
   }
 
   // ==========================================

@@ -43,30 +43,6 @@ import {
   hideTitleScreen
 } from "./menus/titleScreen.js";
 import {
-  confirmMove,
-  cancelMove,
-  captureAtDestination,
-  beginMovedPromote,
-  beginMovedTrade,
-  beginMovedSteal,
-  beginMovedSummon,
-  beginMovedBallista,
-  beginMovedExitBallista,
-  destroyAtDestination
-} from "./menus/movementMenu.js";
-import {
-  checkStats,
-  closeUnitMenu,
-  inspectMovedStats,
-  inspectMovedItems,
-  toggleUnitView
-} from "./menus/unitMenu.js";
-import {
-  beginAttack,
-  cancelAttack,
-  beginStationaryAttack
-} from "./menus/attackMenu.js";
-import {
   staffTargets,
   setSelectedStaffTarget
 } from "./menus/staffState.js";
@@ -86,14 +62,12 @@ import {
 } from "./camera.js";
 import * as Units from "./units.js";
 import * as Items from "./items/index.js";
-import { beginMovedShop } from "./menus/shopMenu.js";
 import { updateUnitInfo } from "./unitInfo.js";
 import { loadTileset } from "./tileset.js";
 import { giveLuckyWeapon } from "./luckyWeapon.js";
 import { loadSprites } from "./sprites.js";
 import { applySavedTheme } from "./settings.js";
 import { endTurn } from "./menus/turnMenu.js";
-import { beginMovedStaff } from "./menus/staffMenu.js";
 import { equipNextAvailableWeapon } from "./inventory.js";
 import { Cursor } from "./cursor.js";
 import { updateTileInfo } from "./tileInfo.js";
@@ -402,42 +376,13 @@ function attachKeyboard() {
 // BUTTON CLICKS (no inline onclick, so a strict CSP works)
 // ==========================================
 
-// Buttons in game.html carry data-click="name" or data-input="direction".
-const CLICK_ACTIONS = {
-  beginAttack,
-  beginMovedStaff,
-  captureTile: captureAtDestination,
-  destroyCave: destroyAtDestination,
-  beginMovedPromote,
-  beginMovedShop,
-  beginMovedTrade,
-  beginMovedSteal,
-  beginMovedSummon,
-  beginMovedBallista,
-  beginMovedExitBallista,
-  inspectMovedItems,
-  inspectMovedStats,
-  confirmMove,
-  beginStationaryAttack,
-  // Stationary ballista is handled inside unitMenu via data-action;
-  // keep a no-op name so a leftover data-click does not error.
-  beginStationaryBallista: () => {},
-  checkStats,
-  toggleUnitView
-};
-
 function attachClickActions() {
   document.addEventListener("click", event => {
-    const element = event.target.closest("[data-click], [data-input]");
+    const element = event.target.closest("[data-input]");
 
     if (!element) return;
 
-    if (element.dataset.input) {
-      handleInput(element.dataset.input);
-      return;
-    }
-
-    CLICK_ACTIONS[element.dataset.click]?.();
+    handleInput(element.dataset.input);
   });
 }
 
