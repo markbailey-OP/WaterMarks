@@ -31,7 +31,7 @@ P	P	P	P	P	M	M	.	.	.	T	.	.	.	.	O	.	$	.	O	.	.	.	T	.	.	.	.	M	M	P	P	P	P	P
 `;
 
 // Teams the player may choose to control. Others are always CPU.
-export const HUMAN_TEAMS = [1, 2];
+export const HUMAN_TEAMS = [1, 2, 3];
 
 // Starting owners (team 1 = Blue, team 2 = Red).
 // Forts within walls belong to the team of the lord.
@@ -104,5 +104,4 @@ export const STARTING_UNITS = [
   { x: 3,  y: 23, unit: "Revenant", team: 3, level: 1, ai: "attack" },
   { x: 34,  y: 23, unit: "Revenant", team: 3, level: 1, ai: "attack" },
   { x: 31,  y: 23, unit: "Revenant", team: 3, level: 1, ai: "attack" },
-
 ];

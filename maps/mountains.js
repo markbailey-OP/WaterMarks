@@ -45,7 +45,7 @@ C	P	P	P	P	M	M	M	T	T	.	T	T	O	T	T	.	.	.	.	T	#	F	F	O	F	F	$
 `;
 
 // Teams the player may choose to control. Others are always CPU.
-export const HUMAN_TEAMS = [1, 2];
+export const HUMAN_TEAMS = [1, 2, 3];
 
 // Starting owners (team 1 = Blue, team 2 = Red).
 // Forts within walls belong to the team of the lord.
