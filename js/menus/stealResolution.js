@@ -1,5 +1,5 @@
 import { stealItem } from "../abilities.js";
-import { awardClassExp, isPromoted } from "../exp.js";
+import { awardClassExp, isPromoted, scaledLevel } from "../exp.js";
 import { animateExpAward } from "./levelUpMenu.js";
 import { recordUnitLevel, recordWeaponExp } from "../strongholds.js";
 import { rollPromotionShop } from "../cpu.js";
@@ -7,9 +7,9 @@ import { rollPromotionShop } from "../cpu.js";
 // 10 + (target level - thief level), +10 to the target's level if it is
 // promoted, minimum 1. awardClassExp applies the EXP multiplier.
 export function getStealExp(thief, victim) {
-  const victimLevel = (victim.lvl ?? 1) + (isPromoted(victim) ? 10 : 0);
+  const victimLevel = scaledLevel(victim) + (isPromoted(victim) ? 10 : 0);
 
-  return Math.max(1, 10 + victimLevel - (thief.lvl ?? 1));
+  return Math.max(1, 10 + victimLevel - scaledLevel(thief));
 }
 
 // Takes the item, then awards and animates the EXP. Returns the item,

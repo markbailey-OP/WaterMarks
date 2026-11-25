@@ -1,6 +1,7 @@
 import { setBattleAnimation } from "../gameArea.js";
 import { sleep as rawSleep, escapeHtml, statMarkup, levelLabel } from "../utils.js";
 import { animMs } from "../settings.js";
+import { MAX_LEVEL } from "../exp.js";
 
 // Every pause on the EXP and level-up screens follows the animation speed.
 const sleep = ms => rawSleep(animMs(ms));
@@ -198,7 +199,7 @@ function renderUnitStats(unit, options = {}) {
 
   const level = options.level ?? unit.lvl;
 
-  const levelClass = level >= 20
+  const levelClass = level >= MAX_LEVEL
     ? "stat-capped"
     : options.levelColor === "old"
       ? "level-old"

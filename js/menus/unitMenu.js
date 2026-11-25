@@ -67,6 +67,7 @@ import {
 import { getPromotionOptions } from "../promotion.js";
 import { isWeapon } from "../combat.js";
 import { removeUnitFromMap } from "./combatAnimation.js";
+import { MAX_LEVEL } from "../exp.js";
 
 // ==========================================
 // THE UNIT MENU
@@ -873,7 +874,7 @@ function renderUnitStats(unit = getInspectedUnit(), options = {}) {
   const statsElement = document.getElementById("unitStats");
   const level = options.level ?? unit.lvl;
 
-  const levelClass = level >= 20
+  const levelClass = level >= MAX_LEVEL
     ? "stat-capped"
     : options.levelColor === "old"
       ? "level-old"
