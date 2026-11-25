@@ -109,6 +109,6 @@ export const STARTING_UNITS = [
   { x: 34,  y: 24, unit: "Revenant", team: 3, level: 1, ai: "attack" },
   { x: 31,  y: 23, unit: "Revenant", team: 3, level: 1, ai: "attack" },
   { x: 16,  y: 18, unit: "Revenant", team: 3, level: 1, ai: "attack" },
-  { x: 15,  y: 18, unit: "Revenant", team: 3, level: 1, ai: "attack" },
+  { x: 18,  y: 18, unit: "Revenant", team: 3, level: 1, ai: "attack" },
   { x: 17,  y: 20, unit: "Bonewalker", team: 3, level: 1, ai: "attack" },
 ];
