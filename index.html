@@ -59,93 +59,11 @@
            MOVEMENT CONFIRMATION MENU
       ======================================= -->
 
-      <div id="moveMenu">
-
-        <h3 id="moveMenuTitle">
-          Move Unit?
-        </h3>
-
-        <!-- Movement actions -->
-        <div id="moveActions">
-
-          <button id="attackOption" data-click="beginAttack">
-            ATTACK
-          </button>
-          
-         <button id="stealOption" data-click="beginMovedSteal"
-            style="display:none;">
-            STEAL
-          </button>
-          
-         <button id="summonOption" data-click="beginMovedSummon"
-            style="display:none;">
-            SUMMON
-          </button>
-
-          <button id="staffOption" data-click="beginMovedStaff"
-            style="display:none;">
-            STAFF
-          </button>
-
-          <button id="captureOption" data-click="captureTile"
-            style="display:none;">
-            CAPTURE
-          </button>
-          
-       <button id="destroyOption" data-click="destroyCave"
-		  style="display:none;">
-		  DESTROY
-		</button>
-
-          <button id="promoteOption" data-click="beginMovedPromote"
-            style="display:none;">
-            PROMOTE
-          </button>
-
-          <button id="shopOption" data-click="beginMovedShop"
-            style="display:none;">
-            SHOP
-          </button>
-
-          <button id="tradeOption" data-click="beginMovedTrade"
-            style="display:none;">
-            TRADE
-          </button>
-
-          <button id="ballistaOption" data-click="beginMovedBallista"
-            style="display:none;">
-            BALLISTA
-          </button>
-
-          <button id="exitBallistaOption" data-click="beginMovedExitBallista"
-            style="display:none;">
-            EXIT
-          </button>
-
-          <button data-click="inspectMovedItems">
-            ITEMS
-          </button>
-
-          <button data-click="inspectMovedStats">
-            STATS
-          </button>
-
-          <button data-click="confirmMove">
-            WAIT
-          </button>
-
-        </div>
-
-
-        <!-- Attack target and weapon selection -->
-        <div id="attackChoices" style="display:none;">
-
-          <p id="attackPrompt"></p>
-
-          <div id="attackOptions"></div>
-
-        </div>
-
+            <!-- Weapon choice and combat preview -->
+      <div id="attackMenu">
+        <h3 id="attackMenuTitle">Choose Weapon</h3>
+        <p id="attackPrompt"></p>
+        <div id="attackOptions"></div>
       </div>
 
 
@@ -154,65 +72,16 @@
       ======================================= -->
 
       <div id="unitMenu">
+        <div id="unitOptions"></div>
 
-        <!-- Initial unit options -->
-        <div id="unitOptions">
-
-          <h3>Unit Options</h3>
-
-          <button
-            id="stationaryAttackOption"
-            data-click="beginStationaryAttack"
-            style="display:none;">
-            ATTACK
-          </button>
-
-          <button
-            id="stationaryBallistaOption"
-            data-click="beginStationaryBallista"
-            style="display:none;">
-            BALLISTA
-          </button>
-
-          <button data-click="checkStats">
-            CHECK STATS
-          </button>
-
-        </div>
-
-
-        <!-- Unit inspection views -->
         <div id="unitDetails" style="display:none;">
-
-          <!-- Unit stats -->
-          <div
-            id="unitStats"
-            style="text-align:left;">
-          </div>
-
-
-          <!-- Weapon ranks and inventory -->
-          <div
-            id="unitWeapons"
-            style="display:none; text-align:left;">
-          </div>
-
-
-          <!-- Inspection navigation -->
-          <div id="unitDetailButtons">
-
-            <button data-click="toggleUnitView">
-              TOGGLE
-            </button>
-
-          </div>
-
+          <div id="unitStats" style="text-align:left;"></div>
+          <div id="unitWeapons" style="display:none; text-align:left;"></div>
+          <div id="unitDetailButtons"></div>
         </div>
-
       </div>
 
     </div>
-
 
     <!-- ======================================
          GAME CONTROLS

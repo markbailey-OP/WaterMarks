@@ -151,7 +151,7 @@ canvas {
    SHARED MENU STYLES
 ========================================== */
 
-#moveMenu,
+#attackMenu,
 #unitMenu,
 #contextMenu {
   display: none;
@@ -194,7 +194,7 @@ canvas {
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
 }
 
-#moveMenu h3,
+#attackMenu h3,
 #unitMenu h3,
 #contextMenu h3 {
   margin: 2px 0 8px;
@@ -207,7 +207,7 @@ canvas {
   font-size: 12px;
 }
 
-#moveMenu button,
+#attackMenu button,
 #unitMenu button,
 #contextMenu button {
   display: block;
@@ -226,7 +226,7 @@ canvas {
   box-sizing: border-box;
 }
 
-#moveMenu button {
+#attackMenu button {
   max-width: 100%;
   padding: 10px 12px;
   margin: 5px;
@@ -270,14 +270,14 @@ canvas {
   font-size: 11px;
 }
 
-#moveMenu button:hover,
+#attackMenu button:hover,
 #unitMenu button:hover,
 #contextMenu button:hover {
   background: var(--accent, #667d61);
   color: var(--selection-text, #fff);
 }
 
-#moveMenu button.menu-option-selected,
+#attackMenu button.menu-option-selected,
 #unitMenu button.menu-option-selected,
 #contextMenu button.menu-option-selected {
   outline: 1px solid var(--gold, #c6a75b);
@@ -319,7 +319,7 @@ canvas {
   outline-offset: 2px;
 }
 
-#moveMenu:has(.combat-preview) {
+#attackMenu:has(.combat-preview) {
   width: min(94vw, 440px);
 }
 
@@ -770,7 +770,7 @@ canvas {
    DARK THEME MENU DETAILS
 ========================================== */
 
-:root[data-theme="dark"] #moveMenu,
+:root[data-theme="dark"] #attackMenu,
 :root[data-theme="dark"] #unitMenu,
 :root[data-theme="dark"] #contextMenu {
   background: #000 !important;
@@ -778,7 +778,7 @@ canvas {
   border-color: #444 !important;
 }
 
-:root[data-theme="dark"] #moveMenu button,
+:root[data-theme="dark"] #attackMenu button,
 :root[data-theme="dark"] #unitMenu button,
 :root[data-theme="dark"] #contextMenu button {
   background: #151515 !important;
@@ -786,10 +786,10 @@ canvas {
   border-color: #555 !important;
 }
 
-:root[data-theme="dark"] #moveMenu button:hover,
+:root[data-theme="dark"] #attackMenu button:hover,
 :root[data-theme="dark"] #unitMenu button:hover,
 :root[data-theme="dark"] #contextMenu button:hover,
-:root[data-theme="dark"] #moveMenu button.menu-option-selected,
+:root[data-theme="dark"] #attackMenu button.menu-option-selected,
 :root[data-theme="dark"] #unitMenu button.menu-option-selected,
 :root[data-theme="dark"] #contextMenu button.menu-option-selected {
   background: #303030 !important;
@@ -902,14 +902,14 @@ canvas {
     font-size: 16px;
   }
 
-  #moveMenu,
+  #attackMenu,
   #unitMenu,
   #contextMenu {
     max-width: calc(100vw - 20px);
     padding: 7px;
   }
 
-  #moveMenu button,
+  #attackMenu button,
   #unitMenu button,
   #contextMenu button {
     min-height: 30px;
@@ -917,7 +917,7 @@ canvas {
     font-size: 12px;
   }
 
-  #moveMenu:has(.combat-preview) {
+  #attackMenu:has(.combat-preview) {
     width: 94vw;
   }
 
@@ -955,7 +955,7 @@ canvas {
 }
 
 @media (max-width: 380px) {
-  #moveMenu {
+  #attackMenu {
     padding: 8px;
   }
   
@@ -1678,7 +1678,7 @@ canvas {
    PROMOTION PREVIEW
 ========================================== */
 
-#moveMenu:has(.promotion-preview) {
+#attackMenu:has(.promotion-preview) {
   width: min(94vw, 440px);
 }
 
