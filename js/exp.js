@@ -5,6 +5,21 @@
  * Handles class EXP calculations and weapon EXP.
  * Combat previews must never call these functions.
  */
+ 
+// ==========================================
+// LEVELING FACTOR (tweak this)
+// ==========================================
+// Each stat rolls LVL_FACTOR times per level-up, and levels are 1/LVL_FACTOR
+// as many: promotion at 10 / LVL_FACTOR, max level 20 / LVL_FACTOR
+// (trainees 10 / LVL_FACTOR). 1 = the original system. Use a whole number.
+export const LVL_FACTOR = 2;
+
+export const MAX_LEVEL = Math.round(20 / LVL_FACTOR);
+export const TRAINEE_MAX_LEVEL = Math.round(10 / LVL_FACTOR);
+
+// A unit's level on the original 1-20 scale. EXP, skill chances and steal
+// EXP are balanced for that scale, so they use this instead of unit.lvl.
+export const scaledLevel = unit => (unit?.lvl ?? 1) * LVL_FACTOR;
 
 // Class power determines how quickly a class earns EXP.
 const CLASS_POWER = {
@@ -90,7 +105,7 @@ export function getClassTier(className) {
 }
 
 // Added to a class's recorded level when a CPU fort picks what to spawn.
-export const TIER_LEVEL_BONUS = [0, 3, 11];
+export const TIER_LEVEL_BONUS = [0, 3, 11].map(bonus => bonus / LVL_FACTOR);
 
 function getClassBonusA(unit) {
   return isPromoted(unit) ? 20 : 0;
@@ -188,8 +203,8 @@ function calculateUnitExp({
   enemyIsBoss = false,
   silencer = false
 }) {
-  const enemyLevel = enemy.lvl ?? 1;
-  const unitLevel = unit.lvl ?? 1;
+  const enemyLevel = scaledLevel(enemy);
+  const unitLevel = scaledLevel(unit);
 
   const enemyPower = getClassPower(enemy);
   const unitPower = getClassPower(unit);
@@ -389,10 +404,6 @@ export function applyWeaponExpRecord(unit, record) {
   raiseRanksFromExp(unit);
 }
 
-
-const MAX_LEVEL = 20;
-const TRAINEE_MAX_LEVEL = 10;
-
 function isTrainee(unit) {
   return TRAINEE_CLASSES.has(unit.className);
 }
@@ -403,35 +414,38 @@ export function levelUp(unit) {
   for (const [stat, growthRate] of Object.entries(unit.growthRates ?? {})) {
     if (!Number.isFinite(growthRate) || growthRate <= 0) continue;
 
-    const currentStat = stat === "hp"
-      ? unit.maxHp
-      : unit[stat];
+    // Each stat rolls LVL_FACTOR times per level.
+    for (let roll = 0; roll < LVL_FACTOR; roll++) {
+      const currentStat = stat === "hp"
+        ? unit.maxHp
+        : unit[stat];
 
-    const statCap = unit.maxStats?.[stat];
+      const statCap = unit.maxStats?.[stat];
 
-    if (typeof currentStat !== "number") continue;
-    if (typeof statCap === "number" && currentStat >= statCap) continue;
+      if (typeof currentStat !== "number") break;
+      if (typeof statCap === "number" && currentStat >= statCap) break;
 
-    let increase = Math.floor(growthRate / 100);
-    const remainingChance = growthRate % 100;
+      let increase = Math.floor(growthRate / 100);
+      const remainingChance = growthRate % 100;
 
-    if (Math.random() * 100 < remainingChance) {
-      increase++;
+      if (Math.random() * 100 < remainingChance) {
+        increase++;
+      }
+
+      if (typeof statCap === "number") {
+        increase = Math.min(increase, statCap - currentStat);
+      }
+
+      if (increase <= 0) continue;
+
+      if (stat === "hp") {
+        unit.maxHp += increase;   // current HP is left alone
+      } else {
+        unit[stat] += increase;
+      }
+
+      gainedStats[stat] = (gainedStats[stat] ?? 0) + increase;
     }
-
-    if (typeof statCap === "number") {
-      increase = Math.min(increase, statCap - currentStat);
-    }
-
-    if (increase <= 0) continue;
-
-        if (stat === "hp") {
-      unit.maxHp += increase;   // current HP is left alone
-    } else {
-      unit[stat] += increase;
-    }
-
-    gainedStats[stat] = increase;
   }
 
   unit.lvl++;

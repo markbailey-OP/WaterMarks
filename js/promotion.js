@@ -4,6 +4,7 @@ import {
   isPromoted,
   getClassTier,
   WEAPON_RANK_THRESHOLDS,
+  LVL_FACTOR,
   raiseRanksFromExp
 } from "./exp.js";
 import {
@@ -12,7 +13,7 @@ import {
   swapMonsterWeapon
 } from "./inventory.js";
 
-export const PROMOTION_LEVEL = 10;
+export const PROMOTION_LEVEL = Math.round(10 / LVL_FACTOR);
 
 const RANK_ORDER = ["E", "D", "C", "B", "A", "S"];
 

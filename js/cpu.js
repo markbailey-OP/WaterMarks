@@ -48,7 +48,8 @@ from "./menus/shopMenu.js";
 import { 
   getPromotionOptions, 
   getPromotionItem, 
-  getPromotionItemName 
+  getPromotionItemName,
+  PROMOTION_LEVEL
 } from "./promotion.js";
 import {
   getReachableTiles,
@@ -61,7 +62,11 @@ import {
   consumeWeaponUse, 
   MAX_INVENTORY } 
 from "./inventory.js";
-import { isPromoted, getClassTier } from "./exp.js";
+import { 
+  isPromoted, 
+  getClassTier, 
+  MAX_LEVEL
+} from "./exp.js";
 import { 
   canUseWeapon, 
   isWeapon,
@@ -120,8 +125,8 @@ const UNIT_BUY_PER_100 = 0.05;
 const MAX_SHOP_WAIT = 3;
 
 // Promotion shopping: chance rises linearly from 5% at level 10 to 100% at 20.
-const PROMO_MIN_LEVEL = 10;
-const PROMO_MAX_LEVEL = 20;
+const PROMO_MIN_LEVEL = PROMOTION_LEVEL;
+const PROMO_MAX_LEVEL = MAX_LEVEL;
 const PROMO_CHANCE_MIN = 0.05;
 // Monsters roll ONCE, the first time they are level 10+ (at spawn if the
 // fort spawns them that high). Pass = they promote on their next turn.

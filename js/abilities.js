@@ -1,4 +1,5 @@
 import { gameGrid } from "./gameState.js";
+import { scaledLevel } from "./exp.js";
 import {
   MAX_INVENTORY,
   addItem,
@@ -98,7 +99,7 @@ export function stealItem(thief, victim, index) {
 
 // Percent chance that a strike is a guaranteed hit: 1.5 x level.
 export function sureStrikeChance(unit) {
-  return hasAbility(unit, "sureStrike") ? (unit.lvl ?? 1) * 1.5 : 0;
+  return hasAbility(unit, "sureStrike") ? scaledLevel(unit) * 1.5 : 0;
 }
 
 // Rolls once per strike.
@@ -111,7 +112,7 @@ export function rollSureStrike(unit) {
 // ==========================================
 
 // 1.5 x level, in percent.
-const levelChance = unit => (unit?.lvl ?? 1) * 1.5;
+const levelChance = unit => scaledLevel(unit) * 1.5;
 
 const roll = percent => Math.random() * 100 < percent;
 
