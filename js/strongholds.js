@@ -34,14 +34,7 @@ const TRAINEES = ["Recruit", "Pupil", "Journeyman", "Trainee"];
 
 // Base (unpromoted) monster classes CPU monster armies can reinforce.
 // Promoted forms are added per-fort via addPromotedClassToFort when a unit promotes.
-const BASE_MONSTERS = [
-  "Revenant",
-  "Bonewalker",
-  "Bael",
-  "MautheDoog",
-  "Mogall",
-  "Gargoyle"
-];
+const BASE_MONSTERS = ["Revenant", "Bonewalker"];
 
 export const AVAILABLE_UNITS = {
   1: [...TRAINEES],
@@ -228,7 +221,7 @@ function computeWeight(unit) {
   // Summoned phantoms never count toward a fort's population.
   if (unit.className === "Phantom") return 0;
 
-  if (TRAINEES.includes(unit.className)) {
+    if (getClassTier(unit.className) === 0) {
     return unit.className === "Pupil" ? 1.25 : 1;
   }
 

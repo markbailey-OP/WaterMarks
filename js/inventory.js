@@ -373,9 +373,11 @@ export function plunderItems(from, to) {
   return taken;
 }
 
-// Replaces a monster's rank-less weapons with its current class's default.
+// Drops a monster's rank-less weapons (claws, eyes) and, if its new class
+// has its own, hands that one over (Bael's Poison Claw becomes Elder
+// Bael's Lethal Talon). A class without one (Cyclops) gets normal weapons.
 export function swapMonsterWeapon(unit) {
-  if (!hasMonsterWeapon(unit?.className)) return null;
+  if (!unit) return null;
 
   unit.inventory = (unit.inventory ?? []).filter(item => {
     const drop = isWeapon(item) && item.rank === null;
@@ -388,7 +390,7 @@ export function swapMonsterWeapon(unit) {
     return !drop;
   });
 
-  return giveMonsterWeapon(unit);
+  return hasMonsterWeapon(unit.className) ? giveMonsterWeapon(unit) : null;
 }
 
 // Gives a default item for every weapon type the unit can use but holds no

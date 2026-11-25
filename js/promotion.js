@@ -75,12 +75,13 @@ export function getPromotionPreview(unit, className) {
   if (!gains || typeof UnitClass !== "function") return null;
 
   const template = new UnitClass(unit.team);
-  const main = unit.mag !== undefined && unit.mag !== null ? "mag" : "str";
+  const oldMain = unit.mag != null ? "mag" : "str";
+  const newMain = template.mag != null ? "mag" : "str";
 
   // [key in the gains table, key on the unit, label]
   const columns = [
     ["hp", "maxHp", "HP"],
-    [main, main, main === "mag" ? "Mag" : "Str"],
+    [newMain, oldMain, newMain === "mag" ? "Mag" : "Str"],
     ["skl", "skl", "Skl"],
     ["spd", "spd", "Spd"],
     ["lck", "lck", "Lck"],
@@ -133,6 +134,16 @@ export function applyPromotion(unit, className) {
   // A throwaway instance supplies the new class's data.
   const template = new UnitClass(unit.team);
   const oldClass = unit.className;
+  
+    // A class with the other main stat (Revenant Str -> Mogall Mag) keeps
+  // the value it had.
+  const oldMain = unit.mag != null ? "mag" : "str";
+  const newMain = template.mag != null ? "mag" : "str";
+
+  if (oldMain !== newMain) {
+    unit[newMain] = unit[oldMain];
+    unit[oldMain] = undefined;
+  }
 
   // Shown as "(10) 1" next to the level.
   unit.priorLevel = unit.lvl;

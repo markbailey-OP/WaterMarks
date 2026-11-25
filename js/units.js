@@ -692,8 +692,11 @@ export const CLASS_DATA = {
     growth: [95, 50, 30, 20, 10, 10, 13],
     ranks: {},
     promotionGains: {
-  Entombed: { hp: 10, str: 1, skl: 0, spd: 1, def: 0, res: 0, con: 0, move: 1 }
-}
+      Entombed: { hp: 10, str: 1, skl: 0, spd: 1, def: 0, res: 0, con: 0, move: 1 },
+      Mogall: { hp: 0, mag: 0, skl: 2, spd: 2, def: 2, res: 4, con: 0, move: 1 },
+      Bael: { hp: 0, str: 2, skl: 3, spd: 3, def: 4, res: 1, con: 4, move: 1 },
+      MautheDoog: { hp: 0, str: 1, skl: 5, spd: 5, def: 2, res: 0, con: 0, move: 3 }
+    }
   },
 
   Entombed: {
@@ -703,7 +706,10 @@ export const CLASS_DATA = {
     growth: [85, 40, 25, 17, 50, 10, 13],
     caps: { hp: 60, str: 25, skl: 22, spd: 21,
       lck: 30, def: 24, res: 22, move: 15, con: 25 },
-    ranks: {}
+    ranks: {},
+    promotionGains: {
+      Cyclops: { hp: 5, str: 3, skl: 4, spd: 4, def: 6, res: 0, con: 5, move: 0 }
+    }
   },
 
   Bonewalker: {
@@ -713,8 +719,10 @@ export const CLASS_DATA = {
     growth: [80, 50, 30, 20, 10, 12, 15],
     ranks: { sword: "C", lance: "C" },
     promotionGains: {
-  Wight: { hp: 4, str: 3, skl: 3, spd: 3, def: 2, res: 2, con: 2, move: 1 }
-}
+      Wight: { hp: 4, str: 3, skl: 3, spd: 3, def: 2, res: 2, con: 2, move: 1 },
+      Gargoyle: { hp: 0, str: 2, skl: 1, spd: 3, def: 3, res: 0, con: 1, move: 1 },
+      Tarvos: { hp: 1, str: 2, skl: 0, spd: 2, def: 4, res: 0, con: 3, move: 2 }
+    }
   },
 
   Wight: {
@@ -724,7 +732,10 @@ export const CLASS_DATA = {
     growth: [65, 25, 25, 20, 10, 15, 22],
     caps: { hp: 60, str: 24, skl: 28, spd: 26,
       lck: 30, def: 22, res: 23, move: 15, con: 25 },
-    ranks: { sword: "A", lance: "A" }
+    ranks: { sword: "A", lance: "A" },
+    promotionGains: {
+      Cyclops: { hp: 8, str: 1, skl: 0, spd: 0, def: 5, res: 0, con: 5, move: 0 }
+    }
   },
 
   Bael: {
@@ -813,15 +824,16 @@ export const CLASS_DATA = {
     terrFactor: "flier",
     ranks: { dark: "C" },
     promotionGains: {
-  ArchMogall: { hp: 2, mag: 4, skl: 2, spd: 1, def: 1, res: 3, con: 1, move: 1 }
-}
+      ArchMogall: { hp: 2, mag: 4, skl: 4, spd: 3, def: 1, res: 3, con: 1, move: 1 },
+      Gorgon: { hp: 4, mag: 4, skl: 2, spd: 2, def: 3, res: 3, con: 5, move: 1 }
+    }
   },
 
   ArchMogall: {
     code: "AM",
     stat: "mag",
     base: [17, 6, 3, 3, 3, 7, 6, 5],
-    growth: [45, 55, 30, 25, 20, 10, 28],
+    growth: [45, 55, 30, 40, 20, 10, 28],
     terrFactor: "flier",
     caps: { hp: 60, mag: 29, skl: 26, spd: 26,
       lck: 30, def: 20, res: 29, move: 15, con: 20 },
@@ -845,10 +857,7 @@ export const CLASS_DATA = {
     growth: [45, 55, 30, 25, 20, 10, 28],
     caps: { hp: 60, mag: 29, skl: 26, spd: 26,
       lck: 30, def: 21, res: 28, move: 15, con: 25 },
-    ranks: { dark: "A" },
-    promotionGains: {
-  Deathgoyle: { hp: 4, str: 2, skl: 2, spd: 2, def: 3, res: 1, con: 3, move: 1 }
-}
+    ranks: { dark: "A" }
   },
 
   Gargoyle: {
@@ -857,7 +866,10 @@ export const CLASS_DATA = {
     base: [19, 6, 3, 6, 6, 0, 6, 8],
     growth: [65, 35, 30, 30, 25, 15, 20],
     terrFactor: "flier",
-    ranks: { lance: "C" }
+    ranks: { lance: "C" },
+    promotionGains: {
+      Deathgoyle: { hp: 4, str: 2, skl: 2, spd: 2, def: 3, res: 1, con: 3, move: 1 }
+    }
   },
 
   Deathgoyle: {

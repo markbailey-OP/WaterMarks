@@ -1202,7 +1202,7 @@ export function promotionShopChance(unit) {
   return PROMO_CHANCE_MIN + (1 - PROMO_CHANCE_MIN) * t;
 }
 
-// A middle-tier unit at level 10+ with somewhere to promote to but no item.
+// A middle-tier unit at level PROMO_MIN_LEVEL or higher with somewhere to promote to but no item.
 function needsPromotionItem(unit) {
   return (
     Boolean(unit) &&
@@ -1220,7 +1220,7 @@ function needsPromotionItem(unit) {
 function rollMonsterPromotion(unit) {
   if (unit.promoRolled) return unit.monsterPromote === true;
 
-  if (isPromoted(unit) || getClassTier(unit.className) !== 1) return false;
+  if (getClassTier(unit.className) >= 2) return false;
   if (Object.keys(unit.promotionGains ?? {}).length === 0) return false;
   if ((unit.lvl ?? 1) < PROMO_MIN_LEVEL) return false;   // not yet: no roll
 
@@ -1561,6 +1561,9 @@ async function takeUnitTurn(unit, ctx) {
       unit,
       promotions[Math.floor(Math.random() * promotions.length)]
     );
+    // The next tier gets a fresh roll.
+	delete unit.promoRolled;
+	delete unit.monsterPromote;
     await sleep(STEP_PAUSE);
     return;
   }

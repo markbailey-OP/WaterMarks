@@ -30,6 +30,8 @@ const CLASS_POWER = {
   Civilian: 1,
   Pontifex: 1,
   Entombed: 1,
+  Revenant: 1,
+  Bonewalker: 1,
 
   Cleric: 2,
   Soldier: 2,
@@ -52,7 +54,7 @@ const PROMOTED_CLASSES = new Set([
   "Druid", "Summoner", "Warrior",
   "Berserker", "Falcoknight", "Valkyrie",
   "Necromancer",
-  "Entombed", "Wight", "ElderBael", "Gwyllgi",
+  "ElderBael", "Gwyllgi",
   "Maelduin", "ArchMogall", "Deathgoyle",
   "Cyclops", "Gorgon"
 ]);
@@ -68,7 +70,9 @@ const TRAINEE_CLASSES = new Set([
   "Recruit",
   "Pupil",
   "Journeyman",
-  "Trainee"
+  "Trainee",
+  "Revenant",
+  "Bonewalker"
 ]);
 
 export const WEAPON_RANK_THRESHOLDS = {
