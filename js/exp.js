@@ -81,8 +81,8 @@ export const WEAPON_RANK_THRESHOLDS = {
 };
 
 const WEAPON_RANK_ORDER = ["E", "D", "C", "B", "A", "S"];
-const EXP_MULTIPLIER = 3;
-const WEAPON_EXP_MULTIPLIER = 3.5;
+const EXP_MULTIPLIER = 2.5;
+const WEAPON_EXP_MULTIPLIER = 7;
 
 function getClassName(unit) {
   return unit.className ?? unit.constructor.name;
