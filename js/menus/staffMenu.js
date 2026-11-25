@@ -1,12 +1,12 @@
 import { canUseWeapon } from "../combat.js";
 import { escapeHtml } from "../utils.js";
 import { pushInputContext, popInputContext, NO_INPUT } from "../input.js";
-import { gameCursor, sel, getUnitPosition } from "../gameState.js";
+import { gameCursor, getUnitPosition } from "../gameState.js";
 import { getHealTargets, getStaffRange, getStaffRangeTiles, isHealingStaff } from "./targeting.js";
-import { getPendingMove, setInspectedUnit } from "./attackState.js";
-import { confirmMove } from "./movementMenu.js";
+import { setInspectedUnit } from "./attackState.js";
 import { closeUnitMenu } from "./unitMenu.js";
 import { useHealingStaff } from "./staffResolution.js";
+import { finishUnitAction } from "./actions.js";
 import {
   selectedStaffTarget,
   startStaffTargeting,
@@ -214,13 +214,7 @@ function finishStaffAction(unit) {
   staffMenuOnBack = null;
   hideStaffMenu();
 
-  if (getPendingMove()?.unit === unit) {
-    confirmMove();               // moved first, then used the staff
-  } else {
-    unit.hasMoved = true;        // used the staff without moving
-    if (sel.bool) gameCursor.back();
-  }
-
+  finishUnitAction(unit);
   closeUnitMenu();
 }
 

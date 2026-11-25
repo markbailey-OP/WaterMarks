@@ -26,7 +26,6 @@ import {
 } from "../strongholds.js";
 import { getPendingMove } from "./attackState.js";
 import { escapeHtml } from "../utils.js";
-import { confirmMove } from "./movementMenu.js";
 
 // ==========================================
 // CONSTANTS
@@ -1088,24 +1087,6 @@ export function closeShop() {
   transacted = false;
 
   callback?.(didTransact);
-}
-
-// SHOP button on the post-move action menu.
-export function beginMovedShop() {
-  const move = getPendingMove();
-
-  if (!move || !isShopTile(move.endX, move.endY)) return;
-
-  document.getElementById("moveMenu").style.display = "none";
-
-  openShop(move.unit, didTransact => {
-    if (didTransact) {
-      confirmMove();   // ends the unit's action
-      return;
-    }
-
-    document.getElementById("moveMenu").style.display = "block";
-  });
 }
 
 // ==========================================

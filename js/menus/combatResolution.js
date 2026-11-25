@@ -87,15 +87,7 @@ function hideAttackInterface() {
     element => element.remove()
   );
 
-  document.getElementById("attackChoices").style.display = "none";
-  document.getElementById("moveMenu").style.display = "none";
-
-  // Prevent cancelling once combat has actually started.
-  const cancelButton = document.getElementById("cancelAttackButton");
-
-  if (cancelButton) {
-    cancelButton.style.display = "none";
-  }
+  document.getElementById("attackMenu").style.display = "none";
 }
 
 // ==========================================

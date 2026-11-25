@@ -1,5 +1,4 @@
 import {
-  gameGrid,
   gameCursor,
   sel,
   side,
@@ -9,32 +8,33 @@ import { isImmobile, currentStatus, getStatusList } from "../status.js";
 import {
   equipItem,
   consumeWeaponUse,
-  tileHasUsableBallista,
   enterBallista,
   exitBallista,
   isBallista
 } from "../inventory.js";
 import { escapeHtml, statMarkup, levelLabel } from "../utils.js";
-import { findAttackTargets, canUseHealingStaff } from "./targeting.js";
-import { beginStationaryAttack } from "./attackMenu.js";
-import { confirmMove } from "./movementMenu.js";
-import { canTrade, openTrade } from "./tradeMenu.js";
-import { canSummon } from "../summon.js";
-import { openSummon } from "./summonMenu.js";
+import { beginAttack } from "./attackMenu.js";
+import { cancelMove } from "./movementMenu.js";
 import {
-  getCapturableTile,
+  getActionIds,
+  ACTION_LABELS,
+  finishUnitAction
+} from "./actions.js";
+import { openTrade } from "./tradeMenu.js";
+import { openSummon } from "./summonMenu.js";
+import { openSteal } from "./stealMenu.js";
+import { openStaffMenu } from "./staffMenu.js";
+import {
   captureTile,
   promoteUnit,
   unlockUnit,
   isLord,
-  getDestroyableCave,
   destroyCave
 } from "../strongholds.js";
-import { 
-  openShop, 
-  isShopTile, 
-  beginBracePlacement, 
-  canPlaceUnit 
+import {
+  openShop,
+  beginBracePlacement,
+  canPlaceUnit
 } from "./shopMenu.js";
 import {
   getPendingMove,
@@ -48,32 +48,33 @@ import {
 import {
   isHealingItem,
   canUseHealingItem,
-  useHealingItem,
   isBraceItem,
-  isCureItem, 
-  isResItem, 
-  canUseItemEffect, 
+  isCureItem,
+  isResItem,
+  canUseItemEffect,
   useItemEffect,
   BRACE_UNITS
 } from "./itemResolution.js";
-import { 
-  pushInputContext, 
-  popInputContext, 
-  NO_INPUT 
+import {
+  pushInputContext,
+  popInputContext,
+  NO_INPUT
 } from "../input.js";
-
-import { 
-  promotionLayoutHtml, 
-  syncPromotionPreview 
+import {
+  promotionLayoutHtml,
+  syncPromotionPreview
 } from "./promotionPreview.js";
-
-import { openStaffMenu } from "./staffMenu.js";
 import { getPromotionOptions } from "../promotion.js";
 import { isWeapon } from "../combat.js";
-import { canSteal } from "../abilities.js";
-import { openSteal } from "./stealMenu.js";
 import { removeUnitFromMap } from "./combatAnimation.js";
 
+// ==========================================
+// THE UNIT MENU
+// ==========================================
+// The one menu for a unit's actions, whether it stayed put or just moved
+// (a unit with a pending move has the same menu; BACK then undoes the move).
+// The buttons come from getActionIds (actions.js). To add an action, add
+// a case to handleMenuAction below.
 
 // ==========================================
 // MENU STATE
@@ -84,6 +85,8 @@ let selectedMenuIndex = 0;
 let menuClickListenerAdded = false;
 let inspectionReturn = null;
 let statusTimer = null;
+
+const unitMenuElement = () => document.getElementById("unitMenu");
 
 function stopStatusLine() {
   clearInterval(statusTimer);
@@ -118,43 +121,38 @@ function startStatusLine(unit) {
 // UNIT ACTION AVAILABILITY
 // ==========================================
 
-function hasPendingMove(unit) {
-  return getPendingMove()?.unit === unit;
-}
-
+// A unit with a pending move can still act: that is the normal case.
 function canActWithUnit(unit) {
-  return (
-    unit.team === side &&
-    !unit.hasMoved &&
-    !isImmobile(unit) &&
-    !hasPendingMove(unit)
-  );
-}
-
-function canUseItems(unit) {
   return unit.team === side && !unit.hasMoved && !isImmobile(unit);
 }
 
-function canEquipItems(unit) {
-  return unit.team === side && !unit.hasMoved && !isImmobile(unit);
-}
+const canUseItems = canActWithUnit;
+const canEquipItems = canActWithUnit;
 
-// Same ending as a staff: confirm a pending move, or just mark the unit done.
-function finishItemAction(unit) {
-  if (getPendingMove()?.unit === unit) {
-    confirmMove();
-  } else {
-    unit.hasMoved = true;
-    if (sel.bool) gameCursor.back();
-  }
+const hasPendingMove = unit => getPendingMove()?.unit === unit;
 
+// Ends the unit's action and closes the menu.
+function finishAndClose(unit) {
+  finishUnitAction(unit);
   closeUnitMenu();
 }
+
+function waitWithUnit() {
+  const unit = getInspectedUnit();
+
+  if (!unit || !canActWithUnit(unit)) return;
+
+  finishAndClose(unit);
+}
+
+// ==========================================
+// ITEMS: USE AND BRACES
+// ==========================================
 
 async function useItem(unit, item) {
   const lock = pushInputContext(NO_INPUT);
 
-  document.getElementById("unitMenu").style.display = "none";
+  unitMenuElement().style.display = "none";
 
   try {
     await useItemEffect(unit, item);
@@ -162,13 +160,13 @@ async function useItem(unit, item) {
     console.error("Item failed:", error);
   } finally {
     popInputContext(lock);
-    finishItemAction(unit);
+    finishAndClose(unit);
   }
 }
 
 function useBrace(unit, item) {
   const className = BRACE_UNITS[item.name];
-  const menu = document.getElementById("unitMenu");
+  const menu = unitMenuElement();
 
   menu.style.display = "none";
 
@@ -181,12 +179,12 @@ function useBrace(unit, item) {
 
     unlockUnit(unit.team, className);
     consumeWeaponUse(unit, item);
-    finishItemAction(unit);
+    finishAndClose(unit);
   });
 }
 
 function itemActionHtml(unit, item, index, equipped, canEquip) {
-	  if (isBraceItem(item)) {
+  if (isBraceItem(item)) {
     if (!canUseItems(unit)) return "<p><em>Viewing only</em></p>";
 
     if (!canPlaceUnit(unit.team, BRACE_UNITS[item.name])) {
@@ -198,7 +196,7 @@ function itemActionHtml(unit, item, index, equipped, canEquip) {
         USE
       </button>`;
   }
-  
+
   if (isHealingItem(item)) {
     if (!canUseItems(unit)) return "<p><em>Viewing only</em></p>";
     if (!canUseHealingItem(unit, item)) return "<p><em>HP is already full</em></p>";
@@ -208,8 +206,8 @@ function itemActionHtml(unit, item, index, equipped, canEquip) {
         USE
       </button>`;
   }
-  
-    if (isCureItem(item) || isResItem(item)) {
+
+  if (isCureItem(item) || isResItem(item)) {
     if (!canUseItems(unit)) return "<p><em>Viewing only</em></p>";
 
     if (!canUseItemEffect(unit, item)) {
@@ -234,22 +232,12 @@ function itemActionHtml(unit, item, index, equipped, canEquip) {
     </button>`;
 }
 
-function canUseStaff(unit) {
-  const position = getUnitPosition(unit);
-
-  return position
-    ? canUseHealingStaff(unit, position.x, position.y)
-    : false;
-}
-
 // ==========================================
 // CONTROLLER MENU NAVIGATION
 // ==========================================
 
 function getVisibleMenuButtons() {
-  const menu = document.getElementById("unitMenu");
-
-  return [...menu.querySelectorAll("button")].filter(button =>
+  return [...unitMenuElement().querySelectorAll("button")].filter(button =>
     button.getClientRects().length > 0 &&
     !button.disabled
   );
@@ -278,8 +266,9 @@ function updateMenuHighlight() {
       button.style.color = "";
     }
   });
-    syncPromotionPreview(
-    document.getElementById("unitMenu"),
+
+  syncPromotionPreview(
+    unitMenuElement(),
     getInspectedUnit(),
     buttons[selectedMenuIndex]
   );
@@ -304,9 +293,7 @@ function moveMenuSelection(direction) {
 }
 
 function selectMenuOption() {
-  const buttons = getVisibleMenuButtons();
-
-  buttons[selectedMenuIndex]?.click();
+  getVisibleMenuButtons()[selectedMenuIndex]?.click();
 }
 
 function setupUnitMenuInput() {
@@ -323,10 +310,8 @@ function setupUnitMenuInput() {
     back: handleUnitMenuBack
   });
 
-  const menu = document.getElementById("unitMenu");
-
   if (!menuClickListenerAdded) {
-    menu.addEventListener("click", event => {
+    unitMenuElement().addEventListener("click", event => {
       const button = event.target.closest("button");
 
       // Staff-menu buttons are handled by staffMenu.js.
@@ -354,50 +339,91 @@ function setupUnitMenuInput() {
 // MENU ACTION HANDLING
 // ==========================================
 
+// Hides the menu while a sub-menu runs. open(done) starts the sub-menu;
+// done(true) ends the unit's action, anything else brings the menu back.
+function runSubMenu(open) {
+  const menu = unitMenuElement();
+
+  menu.style.display = "none";
+
+  open(finished => {
+    if (finished === true) {
+      waitWithUnit();
+      return;
+    }
+
+    menu.style.display = "block";
+    showUnitOptions();
+  });
+}
+
+// The unit and tile an action applies to, or null if it can't be done now.
+function actionContext() {
+  const unit = getInspectedUnit();
+  const position = unit && getUnitPosition(unit);
+
+  if (!unit || !position || !canActWithUnit(unit)) return null;
+
+  return { unit, x: position.x, y: position.y };
+}
+
 function handleMenuAction(button) {
   const action = button.dataset.action;
 
   if (!action) return;
 
   switch (action) {
-    case "attack":
-      releaseUnitMenuInput();
-      beginStationaryAttack();
-      break;
+    case "attack": {
+      const context = actionContext();
 
-    case "ballista": {
-  const unit = getInspectedUnit();
-  const position = getUnitPosition(unit);
-  if (!unit || !position || !canActWithUnit(unit)) return;
-  if (!enterBallista(unit, position.x, position.y)) return;
-  if (sel.bool) gameCursor.getMoves(unit);   // move is now 0: refresh tiles
-  // Stay in the unit menu so they can attack with the ballista or wait.
-  renderUnitOptions();
-  updateMenuHighlight();
-  break;
-}
+      if (!context) return;
 
-case "exit-ballista": {
-  const unit = getInspectedUnit();
-  const position = getUnitPosition(unit);
-  if (!unit || !position || !canActWithUnit(unit)) return;
-  if (!exitBallista(unit, position.x, position.y)) return;
-  if (sel.bool) gameCursor.getMoves(unit);   // move is restored: refresh tiles
-  renderUnitOptions();
-  updateMenuHighlight();
-  break;
-}
-
-    case "staff": {
-      const unit = getInspectedUnit();
-
-      if (!unit || !canActWithUnit(unit)) return;
-
-      openStaffMenu(unit, showUnitOptions);
+      closeUnitMenu();
+      beginAttack(context.unit);
       break;
     }
-    
-            case "use-item": {
+
+    case "ballista": {
+      const context = actionContext();
+
+      if (!context) return;
+
+      const { unit, x, y } = context;
+
+      if (!enterBallista(unit, x, y)) return;
+      if (sel.bool) gameCursor.getMoves(unit);   // move is now 0: refresh tiles
+
+      // Stay in the menu so they can attack with the ballista or wait.
+      renderUnitOptions();
+      updateMenuHighlight();
+      break;
+    }
+
+    case "exit-ballista": {
+      const context = actionContext();
+
+      if (!context) return;
+
+      const { unit, x, y } = context;
+
+      if (!exitBallista(unit, x, y)) return;
+      if (sel.bool) gameCursor.getMoves(unit);   // move is restored: refresh tiles
+
+      renderUnitOptions();
+      updateMenuHighlight();
+      break;
+    }
+
+    case "staff": {
+      const context = actionContext();
+
+      if (!context) return;
+
+      openStaffMenu(context.unit, showUnitOptions);
+      break;
+    }
+
+    case "use-item": {
       const unit = getInspectedUnit();
       const item = unit?.inventory?.[Number(button.dataset.index)];
 
@@ -405,112 +431,72 @@ case "exit-ballista": {
 
       if (isBraceItem(item)) {
         if (canPlaceUnit(unit.team, BRACE_UNITS[item.name])) useBrace(unit, item);
-      } else if (canUseHealingItem(unit, item)) {
-        useItem(unit, item);
       } else if (canUseItemEffect(unit, item)) {
         useItem(unit, item);
       }
       break;
     }
-    
-        case "capture": {
-      const unit = getInspectedUnit();
 
-      if (!unit || !canActWithUnit(unit)) return;
+    case "capture": {
+      const context = actionContext();
 
-      if (captureTile(unit)) waitWithUnit();
+      if (context && captureTile(context.unit)) waitWithUnit();
       break;
     }
-    
-	case "destroy": {
-	  const unit = getInspectedUnit();
-	
-	  if (!unit || !canActWithUnit(unit)) return;
-	
-	  if (destroyCave(unit)) waitWithUnit();
-	  break;
-	}
-    
+
+    case "destroy": {
+      const context = actionContext();
+
+      if (context && destroyCave(context.unit)) waitWithUnit();
+      break;
+    }
+
     case "promote":
-  showPromotionChoices();
-  break;
+      showPromotionChoices();
+      break;
 
-case "promote-to": {
-  const unit = getInspectedUnit();
+    case "promote-to": {
+      const context = actionContext();
 
-  if (!unit || !canActWithUnit(unit)) return;
-
-  if (promoteUnit(unit, button.dataset.class)) waitWithUnit();
-  break;
-}
-    
-        case "shop": {
-      const unit = getInspectedUnit();
-      if (!unit || !canActWithUnit(unit)) return;
-      const menu = document.getElementById("unitMenu");
-      menu.style.display = "none";
-      openShop(unit, didTransact => {
-        if (didTransact) {
-          waitWithUnit();
-          return;
-        }
-        menu.style.display = "block";
-        showUnitOptions();
-      });
+      if (context && promoteUnit(context.unit, button.dataset.class)) {
+        waitWithUnit();
+      }
       break;
     }
-        
-            case "trade": {
-      const unit = getInspectedUnit();
-      const position = unit && getUnitPosition(unit);
 
-      if (!unit || !position || !canActWithUnit(unit)) return;
+    case "shop": {
+      const context = actionContext();
 
-      openTrade(unit, position.x, position.y, () => showUnitOptions());
+      if (!context) return;
+
+      runSubMenu(done => openShop(context.unit, done));
       break;
     }
-    
-        case "steal": {
-      const unit = getInspectedUnit();
-      const position = unit && getUnitPosition(unit);
 
-      if (!unit || !position || !canActWithUnit(unit)) return;
+    case "trade": {
+      const context = actionContext();
 
-      const menu = document.getElementById("unitMenu");
+      if (!context) return;
 
-      menu.style.display = "none";
-
-      openSteal(unit, position.x, position.y, stole => {
-        if (stole) {
-          waitWithUnit();   // stealing ends the unit's action
-          return;
-        }
-
-        menu.style.display = "block";
-        showUnitOptions();
-      });
+      runSubMenu(done => openTrade(context.unit, context.x, context.y, done));
       break;
-    }   
-    
-        case "summon": {
-      const unit = getInspectedUnit();
-      const position = unit && getUnitPosition(unit);
+    }
 
-      if (!unit || !position || !canActWithUnit(unit)) return;
+    case "steal": {
+      const context = actionContext();
 
-      const menu = document.getElementById("unitMenu");
+      if (!context) return;
 
-      menu.style.display = "none";
+      runSubMenu(done => openSteal(context.unit, context.x, context.y, done));
+      break;
+    }
 
-      openSummon(unit, position.x, position.y, summoned => {
-        if (summoned) {
-          waitWithUnit();   // summoning ends the summoner's action
-          return;
-        }
+    case "summon": {
+      const context = actionContext();
 
-        menu.style.display = "block";
-        showUnitOptions();
-      });
+      if (!context) return;
+
+      runSubMenu(done => openSummon(context.unit, context.x, context.y, done));
       break;
     }
 
@@ -521,17 +507,19 @@ case "promote-to": {
     case "stats":
       checkStats();
       break;
-      
+
     case "retreat":
       showRetreatConfirm();
       break;
 
     case "retreat-yes": {
-      const unit = getInspectedUnit();
+      const context = actionContext();
 
-      if (!unit || !canActWithUnit(unit) || isLord(unit)) return;
+      if (!context || isLord(context.unit) || hasPendingMove(context.unit)) {
+        return;
+      }
 
-      retreatUnit(unit);
+      retreatUnit(context.unit);
       break;
     }
 
@@ -566,10 +554,9 @@ case "promote-to": {
       if (!unit || !canEquipItems(unit)) return;
 
       if (equipItem(unit, index)) {
-  setInspectedItemIndex(0);
-  renderUnitItems();
-}
-
+        setInspectedItemIndex(0);
+        renderUnitItems();
+      }
       break;
     }
   }
@@ -580,8 +567,6 @@ case "promote-to": {
 // ==========================================
 
 function getItemsScreen() {
-  const menu = document.getElementById("unitMenu");
-
   let itemsScreen = document.getElementById("unitItems");
 
   if (!itemsScreen) {
@@ -589,7 +574,7 @@ function getItemsScreen() {
     itemsScreen.id = "unitItems";
     itemsScreen.style.display = "none";
 
-    menu.appendChild(itemsScreen);
+    unitMenuElement().appendChild(itemsScreen);
   }
 
   return itemsScreen;
@@ -598,8 +583,7 @@ function getItemsScreen() {
 function getItemDetailsScreen() {
   const itemsScreen = getItemsScreen();
 
-  let detailsScreen =
-    itemsScreen.querySelector("#unitItemDetails");
+  let detailsScreen = itemsScreen.querySelector("#unitItemDetails");
 
   if (!detailsScreen) {
     detailsScreen = document.createElement("div");
@@ -655,7 +639,7 @@ function showPromotionChoices() {
 
   if (!unit) return;
 
-    document.getElementById("unitOptions").innerHTML = `
+  document.getElementById("unitOptions").innerHTML = `
     <h3>PROMOTE TO</h3>
 
     ${promotionLayoutHtml(`
@@ -691,13 +675,13 @@ function showItems() {
 }
 
 function handleUnitMenuBack() {
-  const itemsVisible =
-    getItemsScreen().style.display === "block";
+  const itemsVisible = getItemsScreen().style.display === "block";
 
   const detailsVisible =
     document.getElementById("unitDetails").style.display === "block";
-    
-      if (document.querySelector(
+
+  // A sub-screen of the action list (promotion choices, retreat confirm).
+  if (document.querySelector(
     '#unitOptions [data-action="promote-to"], #unitOptions [data-action="retreat-yes"]'
   )) {
     showUnitOptions();
@@ -722,58 +706,30 @@ function handleUnitMenuBack() {
     return;
   }
 
-  // Normal unit menu navigation.
+  // Back out of the stats or items screen to the action list.
   if (itemsVisible || detailsVisible) {
     showUnitOptions();
     return;
   }
 
+  // From the action list: a unit that just moved goes back where it was.
+  const unit = getInspectedUnit();
+
   closeUnitMenu();
+
+  if (unit && hasPendingMove(unit)) cancelMove();
 }
-
-
 
 // ==========================================
-// UNIT INSPECTION MENU
+// OPEN AND CLOSE
 // ==========================================
-
-// ITEMS / STATS straight from the post-move menu. BACK returns to it.
-function openMovedInspection(open) {
-  const move = getPendingMove();
-
-  if (!move) return;
-
-  const moveMenu = document.getElementById("moveMenu");
-
-  moveMenu.style.display = "none";
-
-  open(move.unit, () => {
-    moveMenu.style.display = "block";
-  });
-}
-
-export function inspectMovedStats() {
-  openMovedInspection(openUnitStats);
-}
-
-export function inspectMovedItems() {
-  openMovedInspection(openUnitItems);
-}
-
-export function inspectMovedUnit() {
-  const pendingMove = getPendingMove();
-
-  if (!pendingMove) return;
-
-  openUnitMenu(pendingMove.unit);
-}
 
 export function openUnitMenu(unit) {
   setInspectedUnit(unit);
   setInspectedItemIndex(null);
   setActiveUnitView("stats");
 
-  document.getElementById("unitMenu").style.display = "block";
+  unitMenuElement().style.display = "block";
 
   showUnitOptions();
   setupUnitMenuInput();
@@ -787,7 +743,7 @@ export function closeUnitMenu() {
 
   releaseUnitMenuInput();
 
-  document.getElementById("unitMenu").style.display = "none";
+  unitMenuElement().style.display = "none";
   document.getElementById("unitOptions").style.display = "block";
   document.getElementById("unitDetails").style.display = "none";
 
@@ -797,10 +753,6 @@ export function closeUnitMenu() {
   if (staffMenu) staffMenu.style.display = "none";
 }
 
-// ==========================================
-// UNIT OPTIONS
-// ==========================================
-
 export function releaseUnitMenuInput() {
   if (!unitMenuInputContext) return;
 
@@ -808,89 +760,51 @@ export function releaseUnitMenuInput() {
   unitMenuInputContext = null;
 }
 
+// For units the player can only look at (enemies, units that already
+// acted), opened from the context menu. BACK calls onBack.
+export function openUnitStats(unit, onBack = null) {
+  if (!unit) return;
+
+  inspectionReturn = onBack;
+
+  openUnitMenu(unit);
+  checkStats();
+}
+
+export function openUnitItems(unit, onBack = null) {
+  if (!unit) return;
+
+  inspectionReturn = onBack;
+
+  openUnitMenu(unit);
+  showItems();
+}
+
+// ==========================================
+// UNIT OPTIONS
+// ==========================================
+
 function renderUnitOptions() {
   const unit = getInspectedUnit();
 
   if (!unit) return;
 
-  const optionsElement = document.getElementById("unitOptions");
-
-  const canAct = canActWithUnit(unit);
   const position = getUnitPosition(unit);
+  const canAct = Boolean(position) && canActWithUnit(unit);
 
-  const targets = canAct
-    ? findAttackTargets(unit, position?.x ?? gameCursor.x, position?.y ?? gameCursor.y)
-    : [];
+  const ids = getActionIds(unit, position?.x, position?.y, {
+    moved: hasPendingMove(unit),
+    canAct
+  });
 
-  const canAttack = targets.length > 0;
-  const canStaff = canAct && canUseStaff(unit);
-  const canCapture =
-    canAct && position && getCapturableTile(unit, position.x, position.y);
-  const canDestroy =
-    canAct && position && getDestroyableCave(unit, position.x, position.y);
-  const canShop = canAct && position && isShopTile(position.x, position.y);
-  const canPromote = canAct && getPromotionOptions(unit).length > 0;
-  const canTradeNow =
-    canAct && position && canTrade(unit, position.x, position.y);
-  const canStealNow =
-    canAct && position && canSteal(unit, position.x, position.y);
-  const canSummonNow =
-    canAct && position && canSummon(unit, position.x, position.y);
-  const canBallista =
-    canAct &&
-    position &&
-    !unit.inBallista &&
-    tileHasUsableBallista(position.x, position.y, unit);
-  const canExitBallista = canAct && Boolean(unit.inBallista);
-  const canRetreat = canAct && !isLord(unit);
-
-  optionsElement.innerHTML = `
+  document.getElementById("unitOptions").innerHTML = `
     <h3>${escapeHtml(unit.className ?? unit.name)}</h3>
 
-    ${canAttack ? `<button type="button" data-action="attack">ATTACK</button>` : ""}
-    ${canStealNow ? `<button type="button" data-action="steal">STEAL</button>` : ""}
-    ${canSummonNow ? `<button type="button" data-action="summon">SUMMON</button>` : ""}
-    ${canStaff ? `<button type="button" data-action="staff">STAFF</button>` : ""}
-    ${canCapture ? `<button type="button" data-action="capture">CAPTURE</button>` : ""}
-    ${canDestroy ? `<button type="button" data-action="destroy">DESTROY</button>` : ""}
-    ${canPromote ? `<button type="button" data-action="promote">PROMOTE</button>` : ""}
-    ${canShop ? `<button type="button" data-action="shop">SHOP</button>` : ""}
-    ${canTradeNow ? `<button type="button" data-action="trade">TRADE</button>` : ""}
-    ${canBallista ? `<button type="button" data-action="ballista">BALLISTA</button>` : ""}
-    ${canExitBallista ? `<button type="button" data-action="exit-ballista">EXIT</button>` : ""}
-
-    <button type="button" data-action="items">ITEMS</button>
-    <button type="button" data-action="stats">STATS</button>
-    ${canRetreat ? `<button type="button" data-action="retreat">RETREAT</button>` : ""}
-    ${canAct ? `<button type="button" data-action="wait">WAIT</button>` : ""}
+    ${ids.map(id => `
+      <button type="button" data-action="${id}">
+        ${ACTION_LABELS[id]}
+      </button>`).join("")}
   `;
-}
-
-// ==========================================
-// WAIT
-// ==========================================
-
-function waitWithUnit() {
-  const unit = getInspectedUnit();
-
-  if (!unit || !canActWithUnit(unit)) return;
-
-  const pendingMove = getPendingMove();
-
-  if (pendingMove?.unit === unit) {
-    // The move menu already cleared the selection.
-    confirmMove();
-  } else {
-    unit.hasMoved = true;
-
-    // The unit was selected on the map and never moved, so clear
-    // its selection, movement range, and attack range overlays.
-    if (sel.bool) {
-      gameCursor.back();
-    }
-  }
-
-  closeUnitMenu();
 }
 
 // ==========================================
@@ -971,8 +885,7 @@ function renderUnitStats(unit = getInspectedUnit(), options = {}) {
 
   const maxHp = values.maxHp ?? unit.maxHp;
 
-  const isMagicUser =
-    unit.mag !== undefined && unit.mag !== null;
+  const isMagicUser = unit.mag !== undefined && unit.mag !== null;
 
   const mainStatName = isMagicUser ? "Mag" : "Str";
   const mainStatKey = isMagicUser ? "mag" : "str";
@@ -1042,14 +955,15 @@ function renderUnitStats(unit = getInspectedUnit(), options = {}) {
         <strong>Con:</strong>
         ${statMarkup(unit, "con", values.con ?? unit.con, options)}
       </div>
-      
-     <div class="stat-status">
+
+      <div class="stat-status">
         <strong>Status:</strong>
         <span id="unitStatusLine"></span>
       </div>
 
     </div>
   `;
+
   startStatusLine(unit);
 }
 
@@ -1103,7 +1017,6 @@ function renderUnitWeapons() {
 // ITEMS SCREEN
 // ==========================================
 
-
 function renderUnitItems() {
   const unit = getInspectedUnit();
 
@@ -1111,19 +1024,20 @@ function renderUnitItems() {
 
   const itemsElement = getItemsScreen();
 
-// A crewed ballista is shown as an extra last entry. It isn't in
-// unit.inventory, so it never uses one of the 5 slots.
-const crewed =
-  unit.inBallista && isBallista(unit.equippedWeapon)
-    ? unit.equippedWeapon
-    : null;
+  // A crewed ballista is shown as an extra last entry. It isn't in
+  // unit.inventory, so it never uses one of the 5 slots.
+  const crewed =
+    unit.inBallista && isBallista(unit.equippedWeapon)
+      ? unit.equippedWeapon
+      : null;
 
-const inventory = crewed
-  ? [...(unit.inventory ?? []), crewed]
-  : (unit.inventory ?? []);
-  
+  const inventory = crewed
+    ? [...(unit.inventory ?? []), crewed]
+    : (unit.inventory ?? []);
+
   const inspectedItemIndex = getInspectedItemIndex();
   const canEquip = canEquipItems(unit);
+
   const inventoryHtml = inventory.length === 0
     ? "<p>Inventory is empty.</p>"
     : inventory.map((item, index) => {
@@ -1131,10 +1045,10 @@ const inventory = crewed
           item.equipped || unit.equippedWeapon === item;
 
         const itemName = `
-  <span class="inventory-item-name ${equipped ? "equipped" : ""} ${item.plunder ? "plunder" : ""}">
-    ${escapeHtml(item.name)}
-  </span>
-`;
+          <span class="inventory-item-name ${equipped ? "equipped" : ""} ${item.plunder ? "plunder" : ""}">
+            ${escapeHtml(item.name)}
+          </span>
+        `;
 
         return `
           <button
@@ -1202,30 +1116,11 @@ const inventory = crewed
         `).join("")}
       </div>
 
-            ${itemActionHtml(unit, item, inspectedItemIndex, equipped, canEquip)}
+      ${itemActionHtml(unit, item, inspectedItemIndex, equipped, canEquip)}
     `;
 
     detailsElement.style.display = "block";
   }
 
   updateMenuHighlight();
-}
-
-
-export function openUnitStats(unit, onBack = null) {
-  if (!unit) return;
-
-  inspectionReturn = onBack;
-
-  openUnitMenu(unit);
-  checkStats();
-}
-
-export function openUnitItems(unit, onBack = null) {
-  if (!unit) return;
-
-  inspectionReturn = onBack;
-
-  openUnitMenu(unit);
-  showItems();
 }

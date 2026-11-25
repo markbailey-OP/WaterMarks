@@ -169,7 +169,7 @@ export function showCombatPreview(
   } = preview;
 
   const options = document.getElementById("attackOptions");
-  const previewTitle = document.getElementById("moveMenuTitle");
+  const previewTitle = document.getElementById("attackMenuTitle");
 
   options.innerHTML = "";
 
@@ -252,10 +252,7 @@ export function showCombatPreview(
     options.innerHTML = "";
 
     // Hide the entire movement and attack menu.
-    document.getElementById("moveMenu").style.display = "none";
-
-    // Hide the attack choices container.
-    document.getElementById("attackChoices").style.display = "none";
+    document.getElementById("attackMenu").style.display = "none";
 
     performAttack(weapon);
   });

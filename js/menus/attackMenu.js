@@ -16,8 +16,6 @@ import {
 import {
   getPendingMove,
   clearPendingMove,
-  getInspectedUnit,
-  setInspectedUnit,
   getActiveAttack,
   setActiveAttack,
   clearActiveAttack
@@ -26,12 +24,25 @@ import {
 import { exitBallista } from "../inventory.js";
 import { showCombatPreview } from "./combatPreview.js";
 import { performAttack } from "./combatResolution.js";
-import { releaseMovementMenuInput } from "./movementMenu.js";
 
 import {
   pushInputContext,
   popInputContext
 } from "../input.js";
+
+// ==========================================
+// THE ATTACK MENU
+// ==========================================
+// #attackMenu only appears while choosing a weapon (and for the combat
+// preview). Everything before that is the unit menu (unitMenu.js).
+
+const attackMenuElement = () => document.getElementById("attackMenu");
+
+function hideAttackMenu() {
+  const menu = attackMenuElement();
+
+  if (menu) menu.style.display = "none";
+}
 
 // ==========================================
 // WEAPON MENU INPUT
@@ -59,68 +70,28 @@ function updateWeaponMenuHighlight() {
   });
 }
 
+function moveWeaponSelection(step) {
+  const buttons = document.querySelectorAll("#attackOptions button");
+
+  if (!buttons.length) return;
+
+  weaponMenuIndex = (weaponMenuIndex + step + buttons.length) % buttons.length;
+
+  updateWeaponMenuHighlight();
+}
+
 function openWeaponMenuInput() {
   closeWeaponMenuInput();
 
   weaponMenuInputContext = pushInputContext({
-    up: () => {
-      const buttons = document.querySelectorAll(
-        "#attackOptions button"
-      );
-
-      if (!buttons.length) return;
-
-      weaponMenuIndex =
-        (weaponMenuIndex - 1 + buttons.length) % buttons.length;
-
-      updateWeaponMenuHighlight();
-    },
-
-    left: () => {
-      const buttons = document.querySelectorAll(
-        "#attackOptions button"
-      );
-
-      if (!buttons.length) return;
-
-      weaponMenuIndex =
-        (weaponMenuIndex - 1 + buttons.length) % buttons.length;
-
-      updateWeaponMenuHighlight();
-    },
-
-    down: () => {
-      const buttons = document.querySelectorAll(
-        "#attackOptions button"
-      );
-
-      if (!buttons.length) return;
-
-      weaponMenuIndex =
-        (weaponMenuIndex + 1) % buttons.length;
-
-      updateWeaponMenuHighlight();
-    },
-
-    right: () => {
-      const buttons = document.querySelectorAll(
-        "#attackOptions button"
-      );
-
-      if (!buttons.length) return;
-
-      weaponMenuIndex =
-        (weaponMenuIndex + 1) % buttons.length;
-
-      updateWeaponMenuHighlight();
-    },
+    up: () => moveWeaponSelection(-1),
+    left: () => moveWeaponSelection(-1),
+    down: () => moveWeaponSelection(1),
+    right: () => moveWeaponSelection(1),
 
     select: () => {
-      const buttons = document.querySelectorAll(
-        "#attackOptions button"
-      );
-
-      buttons[weaponMenuIndex]?.click();
+      document.querySelectorAll("#attackOptions button")[weaponMenuIndex]
+        ?.click();
     },
 
     back: () => {
@@ -150,10 +121,6 @@ function startAttack(
   destinationY,
   movedToAttackPosition
 ) {
-  // Release movement-menu controls so cursor.js
-  // can handle attack-target selection.
-  releaseMovementMenuInput();
-
   const attack = {
     unit,
     targets,
@@ -162,21 +129,11 @@ function startAttack(
     destinationX,
     destinationY,
     movedToAttackPosition,
-    attackRange: getAttackRangeTiles(
-      unit,
-      destinationX,
-      destinationY
-    ),
+    attackRange: getAttackRangeTiles(unit, destinationX, destinationY),
     choosingTarget: true
   };
 
   setActiveAttack(attack);
-
-  // Temporarily move the unit if attacking after moving.
-  if (movedToAttackPosition) {
-    gameGrid[originalY][originalX].unit = undefined;
-    gameGrid[destinationY][destinationX].unit = unit;
-  }
 
   unit.selected = false;
 
@@ -199,69 +156,52 @@ function startAttack(
   setSelectedAttackTarget(firstTarget);
   gameCursor.moveToTarget(firstTarget);
 
-  // Hide the menus during target selection.
-  document.getElementById("unitMenu").style.display = "none";
-  document.getElementById("moveActions").style.display = "none";
-  document.getElementById("attackChoices").style.display = "none";
-  document.getElementById("moveMenu").style.display = "none";
+  hideAttackMenu();
 }
 
 // ==========================================
-// ATTACK AFTER MOVING
+// BEGIN ATTACK (the unit menu's ATTACK button)
 // ==========================================
 
-export function beginAttack() {
-  const move = getPendingMove();
-
-  if (!move || move.targets.length === 0) return;
-
-  clearPendingMove();
-
-  startAttack(
-    move.unit,
-    move.targets,
-    move.startX,
-    move.startY,
-    move.endX,
-    move.endY,
-    true
-  );
-}
-
-// ==========================================
-// STATIONARY ATTACK
-// ==========================================
-
-export function beginStationaryAttack() {
-  const unit = getInspectedUnit();
-
-  if (!unit) return;
-
-  // Only allow the current side to attack with an available unit.
-  if (unit.team !== side || unit.hasMoved) return;
+// Works the same for a unit that moved first and one that did not. The
+// caller closes the unit menu before calling this.
+export function beginAttack(unit) {
+  if (!unit || unit.team !== side || unit.hasMoved) return;
 
   const position = getUnitPosition(unit);
 
   if (!position) return;
 
-  const unitX = position.x;
-  const unitY = position.y;
-
-  const targets = findAttackTargets(unit, unitX, unitY);
+  const targets = findAttackTargets(unit, position.x, position.y);
 
   if (targets.length === 0) return;
 
-  startAttack(
-    unit,
-    targets,
-    unitX,
-    unitY,
-    unitX,
-    unitY,
-    false
-  );
+  const move = getPendingMove();
 
-  setInspectedUnit(null);
+  if (move?.unit === unit) {
+    // Cancelling the attack later undoes the move too.
+    clearPendingMove();
+
+    startAttack(
+      unit,
+      targets,
+      move.startX,
+      move.startY,
+      position.x,
+      position.y,
+      true
+    );
+  } else {
+    startAttack(
+      unit,
+      targets,
+      position.x,
+      position.y,
+      position.x,
+      position.y,
+      false
+    );
+  }
 }
 
 // ==========================================
@@ -272,15 +212,16 @@ export function cancelAttack() {
   const attack = getActiveAttack();
 
   if (!attack) return;
-  
+
   closeWeaponMenuInput();
 
   const unit = attack.unit;
 
-	if (attack.movedToAttackPosition && unit.inBallista) {
-	  exitBallista(unit, attack.destinationX, attack.destinationY);
-	}
-  // Restore the unit if it temporarily moved to attack.
+  if (attack.movedToAttackPosition && unit.inBallista) {
+    exitBallista(unit, attack.destinationX, attack.destinationY);
+  }
+
+  // Restore the unit if it moved before attacking.
   if (attack.movedToAttackPosition) {
     gameGrid[attack.destinationY][attack.destinationX].unit = undefined;
     gameGrid[attack.originalY][attack.originalX].unit = unit;
@@ -301,16 +242,7 @@ export function cancelAttack() {
   sel.xCoord = undefined;
   sel.yCoord = undefined;
 
-  document.getElementById("attackChoices").style.display = "none";
-  document.getElementById("moveActions").style.display = "none";
-  document.getElementById("moveMenu").style.display = "none";
-
-  const cancelButton =
-    document.getElementById("cancelAttackButton");
-
-  if (cancelButton) {
-    cancelButton.style.display = "none";
-  }
+  hideAttackMenu();
 }
 
 // ==========================================
@@ -331,42 +263,28 @@ function showAttackTargets() {
   const attack = getActiveAttack();
 
   if (!attack || attack.targets.length === 0) return;
-  
+
   closeWeaponMenuInput();
   attack.choosingTarget = true;
 
-  // Hide the menus while choosing a target.
-  document.getElementById("attackChoices").style.display = "none";
-  document.getElementById("moveMenu").style.display = "none";
-
-  const cancelButton =
-    document.getElementById("cancelAttackButton");
-
-  if (cancelButton) {
-    cancelButton.style.display = "none";
-  }
+  hideAttackMenu();
 
   // Restore the selected target, or default to the first.
-  const target = attack.targets.includes(
-    getSelectedTarget()
-  )
-    ? getSelectedTarget()
-    : attack.targets[0];
+  const current = getSelectedTarget();
+  const target = attack.targets.includes(current) ? current : attack.targets[0];
 
   setSelectedAttackTarget(target);
   gameCursor.moveToTarget(target);
 }
 
-// Helper to read the current selected target.
+// The target under the cursor, if it is one of the attack's targets.
 function getSelectedTarget() {
   const attack = getActiveAttack();
 
   if (!attack) return null;
 
   return attack.targets.find(
-    target =>
-      target.x === gameCursor.x &&
-      target.y === gameCursor.y
+    target => target.x === gameCursor.x && target.y === gameCursor.y
   ) ?? null;
 }
 
@@ -394,43 +312,29 @@ function showAttackWeapons(target) {
   attack.target = target;
   attack.preview = null;
 
-  document.getElementById("moveMenu").style.display = "block";
-  document.getElementById("attackChoices").style.display = "block";
+  attackMenuElement().style.display = "block";
 
-  const previewTitle = document.getElementById("moveMenuTitle");
-  previewTitle.style.display = "";
-  previewTitle.textContent = "Choose Weapon";
+  const title = document.getElementById("attackMenuTitle");
+  title.style.display = "";
+  title.textContent = "Choose Weapon";
 
   document.getElementById("attackPrompt").textContent =
     `Target: ${target.name}`;
-
-  const cancelButton =
-    document.getElementById("cancelAttackButton");
-
-  if (cancelButton) {
-    cancelButton.style.display = "none";
-  }
 
   for (const weapon of target.weapons) {
     const button = document.createElement("button");
 
     const equipped =
-      weapon.equipped ||
-      attack.unit.equippedWeapon === weapon;
+      weapon.equipped || attack.unit.equippedWeapon === weapon;
 
     button.textContent =
-  `${weapon.name} (${usesLabel(weapon)})` +
-  (equipped ? " [E]" : "");
+      `${weapon.name} (${usesLabel(weapon)})` + (equipped ? " [E]" : "");
 
     button.addEventListener("click", () => {
       closeWeaponMenuInput();
 
       if (target.type === "unit") {
-        showCombatPreview(
-          weapon,
-          performAttack,
-          showAttackWeapons
-        );
+        showCombatPreview(weapon, performAttack, showAttackWeapons);
       } else {
         performAttack(weapon);
       }
