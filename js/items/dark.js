@@ -22,13 +22,30 @@ export class Dark extends Item {
 
 // Basic Dark magic
 
+export class Hex extends Dark {
+  constructor() {
+    super("Hex", {
+      rank: "E",
+      range: [1, 2],
+      wt: 6,
+      might: 6,
+      hit: 70,
+      crit: 0,
+      uses: 50,
+      wExp: 1,
+      worth: 600,
+      effect: "NONE"
+    });
+  }
+}
+
 export class Flux extends Dark {
   constructor() {
     super("Flux", {
       rank: "D",
       range: [1, 2],
       wt: 8,
-      might: 7,
+      might: 9,
       hit: 80,
       crit: 0,
       uses: 45,
