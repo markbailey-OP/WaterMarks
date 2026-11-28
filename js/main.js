@@ -4,14 +4,18 @@ import {
   advanceTime,
   time,
   side,
-  updateTurnDisplay
+  updateTurnDisplay,
+  setRules,
+  setTurnState,
+  getFirstTeam
 } from "./gameState.js";
 import { 
   buildMap, 
   loadMap, 
   STARTING_UNITS, 
-  TILE_SIZE } 
-from "./map.js";
+  TILE_SIZE,
+  MAP_RULES
+} from "./map.js";
 import { 
   myGameArea, 
   setMapDirty } 
@@ -235,12 +239,14 @@ function beginPlay(cursorStart = null) {
 async function startNewGame(mapId, humanTeams = [1]) {
   await loadMap(mapId);
 
-  // Before any units spawn: the CPU rolls promotion shops at spawn time.
+  setRules(MAP_RULES);               // rosters and win rules from the map
   setControllers(humanTeams);
 
   buildMap();
   assignFortIndexes();
   placeStartingUnits();
+
+  setTurnState(1, getFirstTeam());   // first team that has anything on the map
   beginPlay();
 }
 

@@ -22,6 +22,7 @@ export class Unit {
 
     if (team === 1) this.color = "#0000dd";
     else if (team === 2) this.color = "#dd0000";
+    else if (team === 4) this.color = "#aa00dd";
     else this.color = "#00dd00";
 
     this.selected = false;

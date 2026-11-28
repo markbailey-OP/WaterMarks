@@ -27,6 +27,7 @@ import * as Items from "./items/index.js";
 
 export let BALLISTAS = [];
 export let HUMAN_TEAMS = [1, 2];
+export let MAP_RULES = {};
 
 function createBallistaItem(name = "Ballista") {
   if (name === "Iron Ballista") return new Items.IronBallista();
@@ -86,6 +87,7 @@ export async function loadMap(id) {
   STARTING_UNITS = data.STARTING_UNITS;
   BALLISTAS = Array.isArray(data.BALLISTAS) ? data.BALLISTAS : [];
   HUMAN_TEAMS = Array.isArray(data.HUMAN_TEAMS) ? data.HUMAN_TEAMS : [1, 2];
+  MAP_RULES = { rosters: data.TEAM_ROSTERS, win: data.WIN_RULES };
 
   const widths = new Set(MAP_LAYOUT.map(row => row.length));
   if (widths.size > 1) throw new Error(`Map "${entry.name}" has uneven rows.`);

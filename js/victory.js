@@ -1,16 +1,13 @@
-import { gameGrid, TEAM_NAMES, TEAM_COLORS } from "./gameState.js";
+import { gameGrid, rules, TEAM_NAMES, TEAM_COLORS } from "./gameState.js";
 import { pushInputContext, popInputContext } from "./input.js";
 
 // ==========================================
-// SETTINGS (tweak these)
+// WIN RULES
 // ==========================================
-
-// Percent of ALL forts on the map a team must hold to win.
-export const FORT_WIN_PERCENT = 75;
-
-// Only these teams can win, and only their thrones count.
-// Other teams can lose every fort and the game goes on.
-export const CONTENDING_TEAMS = [1, 2];
+// The rules come from the map (WIN_RULES in a map file, see gameState.js):
+//   rules.win.fortPercent    % of all forts and caves a team must hold
+//   rules.win.throneCapture  capturing a contender's throne wins
+//   rules.win.contenders     the teams that can win
 
 // ==========================================
 // STATE
@@ -23,7 +20,7 @@ let inputContext = null;
 export const isGameOver = () => gameOver !== null;
 export const getGameResult = () => gameOver;
 
-const isContender = team => CONTENDING_TEAMS.includes(team);
+const isContender = team => rules.win.contenders.includes(team);
 
 export function resetVictory() {
   gameOver = null;
@@ -41,14 +38,16 @@ export function resetVictory() {
 // FORT COUNTING
 // ==========================================
 
-// { total, counts: { team: forts held } } for the whole map.
+// { total, counts: { team: forts and caves held } } for the whole map.
+// Caves count like forts. A destroyed cave is a Peak, so it drops out of
+// the total (and out of its owner's count).
 export function countForts() {
   const counts = {};
   let total = 0;
 
   for (const row of gameGrid) {
     for (const tile of row) {
-      if (tile?.name !== "Fort") continue;
+      if (tile?.name !== "Fort" && tile?.name !== "Cave") continue;
 
       total++;
 
@@ -66,25 +65,29 @@ export function countForts() {
 // ==========================================
 
 // Returns a result object, or null. `preferTeam` is checked first, so if a
-// low FORT_WIN_PERCENT lets both teams qualify, the one who just captured wins.
+// low percentage lets several teams qualify, the one who just acted wins.
 export function checkFortVictory(preferTeam = null) {
+  const percent = rules.win.fortPercent;
+
+  if (!percent) return null;   // this win condition is off for the map
+
   const { total, counts } = countForts();
 
   if (total === 0) return null;
 
-  const order = [...CONTENDING_TEAMS].sort(
+  const order = [...rules.win.contenders].sort(
     (a, b) => (b === preferTeam) - (a === preferTeam)
   );
 
   for (const team of order) {
     const held = counts[team] ?? 0;
 
-    // Integer math, so 3 of 5 forts at 60% has no rounding trouble.
-    if (held * 100 >= total * FORT_WIN_PERCENT) {
+    // Integer math, so 10 of 15 at 66% has no rounding trouble.
+    if (held * 100 >= total * percent) {
       return {
         winner: team,
         reason: "forts",
-        detail: `Holds ${held} of ${total} forts (${FORT_WIN_PERCENT}% needed).`
+        detail: `Holds ${held} of ${total} forts and caves (${percent}% needed).`
       };
     }
   }
@@ -97,8 +100,9 @@ export function checkFortVictory(preferTeam = null) {
 // ==========================================
 
 // A throne changed hands. Only a contender taking another contender's
-// throne counts. Neutral or non-contending thrones do nothing.
+// throne counts, and only if the map allows it.
 export function checkThroneVictory(tile, previousOwner, newOwner) {
+  if (!rules.win.throneCapture) return null;
   if (tile?.name !== "Throne") return null;
   if (previousOwner === newOwner) return null;
   if (!isContender(previousOwner) || !isContender(newOwner)) return null;
@@ -172,6 +176,18 @@ export function reportCapture(tile, previousOwner, newOwner) {
   const result =
     checkThroneVictory(tile, previousOwner, newOwner) ??
     checkFortVictory(newOwner);
+
+  if (result) endGame(result);
+
+  return result;
+}
+
+// Call after a Cave is destroyed: the total shrinks, which can push a team
+// over the line.
+export function reportDestroyed(team) {
+  if (gameOver) return gameOver;
+
+  const result = checkFortVictory(team);
 
   if (result) endGame(result);
 

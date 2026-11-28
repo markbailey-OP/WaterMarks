@@ -1,6 +1,8 @@
-import {
-  gameGrid,
-  TEAM_NAMES
+import { 
+  gameGrid, 
+  TEAM_NAMES, 
+  TEAM_COUNT, 
+  getRosterType 
 } from "./gameState.js";
 import {
   isPromoted,
@@ -24,7 +26,7 @@ import { setMapDirty } from "./gameArea.js";
 import { giveLuckyWeapon } from "./luckyWeapon.js";
 import { rollPromotionShop } from "./cpu.js";
 import { showToast } from "./utils.js";
-import { reportCapture } from "./victory.js";
+import { reportCapture, reportDestroyed } from "./victory.js";
 import { isMonster } from "./combat.js";
 import { destroyTerrain } from "./terrainDestruction.js";
 import * as Units from "./units.js";
@@ -36,22 +38,13 @@ const TRAINEES = ["Recruit", "Pupil", "Journeyman", "Trainee"];
 // Promoted forms are added per-fort via addPromotedClassToFort when a unit promotes.
 const BASE_MONSTERS = ["Revenant", "Bonewalker"];
 
-export const AVAILABLE_UNITS = {
-  1: [...TRAINEES],
-  2: [...TRAINEES],
-  // Team 3 is the monster army on the stock maps.
-  3: [...BASE_MONSTERS]
-};
+// Default reinforcement pool by roster type (TEAM_ROSTERS in the map).
+const ROSTER_POOLS = { human: TRAINEES, monster: BASE_MONSTERS };
 
-// True when this team's default reinforcement pool is monsters.
-export function isMonsterTeam(team) {
-  const pool = AVAILABLE_UNITS[team] ?? TRAINEES;
-
-  return pool.length > 0 && pool.every(name => isMonster({ className: name }));
-}
+export const isMonsterTeam = team => getRosterType(team) === "monster";
 
 export function getDefaultUnitsForTeam(team) {
-  return [...(AVAILABLE_UNITS[team] ?? TRAINEES)];
+  return [...ROSTER_POOLS[getRosterType(team)]];
 }
 
 // ==========================================
@@ -59,7 +52,9 @@ export function getDefaultUnitsForTeam(team) {
 // ==========================================
 
 // Classes a team has unlocked for the shop (for example through braces).
-const UNLOCKED_UNITS = { 1: new Set(), 2: new Set(), 3: new Set() };
+const TEAMS = Array.from({ length: TEAM_COUNT }, (_, i) => i + 1);
+const UNLOCKED_UNITS = Object.fromEntries(TEAMS.map(team => [team, new Set()]));
+const PROMOTION_SOURCES = Object.fromEntries(TEAMS.map(team => [team, {}]));
 
 export function unlockUnit(team, className) {
   (UNLOCKED_UNITS[team] ??= new Set()).add(className);
@@ -87,7 +82,6 @@ export function setUnlockedUnits(saved = {}) {
 
 // team -> { className: fromClass }. The class a team most recently
 // promoted from to reach each class. The shop builds bought units from it.
-const PROMOTION_SOURCES = { 1: {}, 2: {}, 3: {} };
 
 export function setPromotionSource(team, className, fromClass) {
   (PROMOTION_SOURCES[team] ??= {})[className] = fromClass;
@@ -130,7 +124,7 @@ export function getAvailableUnits(team, fort = null) {
     return fort.availableUnits;
   }
 
-  return AVAILABLE_UNITS[team] ?? TRAINEES;
+  return getDefaultUnitsForTeam(team);
 }
 
 export function addPromotedClassToFort(fort, promotedClassName) {
@@ -443,7 +437,8 @@ export function destroyCave(unit) {
   destroyTerrain(position.x, position.y);
   setMapDirty(true);
   showToast("Cave destroyed.");
-
+  reportDestroyed(unit.team);
+  
   return true;
 }
 

@@ -138,6 +138,7 @@ function readThemeColors() {
     blue: read("--blue-team", "#356fc0"),
     red: read("--red-team", "#b94a4a"),
     green: read("--green-team","#3f9a4f"),
+    purple: read("--purple-team", "#b04fd0"),
     page: read("--page-bg", "#202326")
   };
 }
@@ -158,7 +159,8 @@ function getThemeColors() {
 }
 
 function teamThemeColor(colors, team) {
-  return team === 1 ? colors.blue : team === 2 ? colors.red : colors.green;
+  return [colors.blue, colors.red, colors.green, colors.purple][team - 1] ??
+    colors.green;
 }
 
 // ==========================================

@@ -9,7 +9,9 @@ import {
   teamGold,
   TEAM_COUNT,
   TEAM_NAMES,
-  setTurnState
+  setTurnState,
+  rules,
+  setRules
 } from "./gameState.js";
 import {
   getUnlockedUnits,
@@ -126,6 +128,7 @@ export function serializeGame() {
     turn,
     side,
     gold: { ...teamGold },
+    rules,
     humans: getHumanTeams(),
     unlocked: getUnlockedUnits(),
     promotionSources: getPromotionSources(),
@@ -261,6 +264,7 @@ export function restoreGame(data) {
 
   setUnlockedUnits(data.unlocked);
   setPromotionSources(data.promotionSources);
+  setRules(data.rules);
   setControllers(
   Array.isArray(data.humans)
     ? data.humans.filter(Number.isInteger)
