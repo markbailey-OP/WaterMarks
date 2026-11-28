@@ -1,23 +1,24 @@
 import * as Items from "../items/index.js";
 import { CLASS_DATA } from "../units.js";
-
 import {
   gameGrid,
   gameCursor,
   getGold,
   setGold,
   addGold,
-  getUnitPosition
+  getUnitPosition,
+  getRosterType
 } from "../gameState.js";
-
 import { pushInputContext, popInputContext } from "../input.js";
 import {
   addItem,
   equipNextAvailableWeapon,
   MAX_INVENTORY
 } from "../inventory.js";
-
-import { isPromoted } from "../exp.js";
+import { 
+  isPromoted,
+  getClassTier
+} from "../exp.js";
 import {
   addPurchasedClassToFort,
   getAvailableUnits,
@@ -26,6 +27,7 @@ import {
 } from "../strongholds.js";
 import { getPendingMove } from "./attackState.js";
 import { escapeHtml } from "../utils.js";
+import { isMonster } from "../combat.js";
 
 // ==========================================
 // CONSTANTS
@@ -48,13 +50,10 @@ const ITEM_CATEGORIES = [
 ];
 
 // Classes that can never be bought.
+// Classes that can never be bought.
 const NEVER_BUYABLE = new Set([
   "Lord", "GreatLord", "Dancer", "Fleet", "Phantom", "Manakete",
-  // Monsters
-  "Revenant", "Entombed", "Bonewalker", "Wight", "Bael", "ElderBael",
-  "Cyclops", "MautheDoog", "Gwyllgi", "Tarvos", "Maelduin", "Mogall",
-  "ArchMogall", "GorgonEgg", "Gorgon", "Gargoyle", "Deathgoyle",
-  "DracoZombie", "DemonKing"
+  "GorgonEgg", "DracoZombie", "DemonKing"
 ]);
 
 // Middle-tier classes. Like promoted classes, they only become
@@ -67,11 +66,17 @@ const PROMOTION_ONLY = new Set([
 function canBuyUnit(team, className) {
   if (NEVER_BUYABLE.has(className)) return false;
 
-  if (PROMOTION_ONLY.has(className) || isPromoted({ className })) {
-    return isUnitUnlocked(team, className);
-  }
+  const monster = isMonster({ className });
 
-  return true;
+  // Monster teams buy monsters, human teams buy humans.
+  if (monster !== (getRosterType(team) === "monster")) return false;
+
+  const needsUnlock =
+    PROMOTION_ONLY.has(className) ||
+    isPromoted({ className }) ||
+    (monster && getClassTier(className) >= 1);
+
+  return needsUnlock ? isUnitUnlocked(team, className) : true;
 }
 
 // ==========================================
