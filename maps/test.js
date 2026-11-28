@@ -1,3 +1,14 @@
+export const HUMAN_TEAMS = [1, 2, 3, 4];     // teams a player may control. Teams not in list default to CPU if present 
+
+// "human" = trainee classes, "monster" = monster classes. Any mix of 4 teams.
+export const TEAM_ROSTERS = { 1: "human", 4: "monster" };
+
+export const WIN_RULES = {
+  fortPercent: 66,       // % of all forts AND caves to hold. null = off
+  throneCapture: true,   // capturing a contender's throne wins
+  contenders: [1, 4]     // the teams that can win
+};
+
 export const MAP_LAYOUT = `
 O	P	P	M	M	D	#	F	F	$	H	F	F	#	.	.	.	T	T	O
 P	P	M	M	D	D	W	F	O	F	F	O	F	W	.	.	T	T	T	T
@@ -35,13 +46,13 @@ export const STRONGHOLD_OWNERS = [
   { x: 11, y: 2, team: 1 },  
 
   // Team 2 (Red) Throne & Forts within walls
-  { x: 10, y: 19, team: 2 }, // Throne
-  { x: 8, y: 18, team: 2 },  // Flanking Fort (West)
-  { x: 11, y: 18, team: 2 }, // Flanking Fort (East)
-  { x: 8, y: 17, team: 2 },  // Adjacent Fort (West)
-  { x: 9, y: 17, team: 2 },  // Adjacent Fort (East)
-  { x: 10, y: 17, team: 2 },  
-  { x: 11, y: 17, team: 2 },
+  { x: 10, y: 19, team: 4 }, // Throne
+  { x: 8, y: 18, team: 4 },  // Flanking Fort (West)
+  { x: 11, y: 18, team: 4 }, // Flanking Fort (East)
+  { x: 8, y: 17, team: 4 },  // Adjacent Fort (West)
+  { x: 9, y: 17, team: 4 },  // Adjacent Fort (East)
+  { x: 10, y: 17, team: 4 },  
+  { x: 11, y: 17, team: 4 },
   
     // Team 3 (Green): corner forts
   { x: 0,  y: 0,  team: 3 },
@@ -67,14 +78,14 @@ export const STARTING_UNITS = [
   { x: 11, y: 2, unit: "Recruit", team: 1 },
 
   // Team 2 (Red)
-  { x: 10, y: 19, unit: "Lord", team: 2 },
+  { x: 10, y: 19, unit: "Lord", team: 4 },
   
-  { x: 8, y: 17, unit: "Pupil", team: 2 },
-  { x: 9, y: 17, unit: "Trainee", team: 2 },
-  { x: 8, y: 18, unit: "Cleric", team: 2 },
-  { x: 11, y: 18, unit: "Archer", team: 2 },
-  { x: 10, y: 17, unit: "Journeyman", team: 2 },
-  { x: 11, y: 17, unit: "Recruit", team: 2 },
+  { x: 8, y: 17, unit: "Pupil", team: 4 },
+  { x: 9, y: 17, unit: "Trainee", team: 4 },
+  { x: 8, y: 18, unit: "Cleric", team: 4 },
+  { x: 11, y: 18, unit: "Archer", team: 4 },
+  { x: 10, y: 17, unit: "Journeyman", team: 4 },
+  { x: 11, y: 17, unit: "Recruit", team: 4 },
   
     // Team 3 (Green), CPU defend
   { x: 0,  y: 0,  unit: "Berserker", team: 3, level: 1, ai: "defend",
