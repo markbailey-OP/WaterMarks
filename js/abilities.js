@@ -16,6 +16,7 @@ const CLASS_ABILITIES = {
   Rogue: ["steal", "pass"],
   Assassin: ["pass", "silencer"],
   Summoner: ["summon"],
+  Necromancer: ["summon"],
   Bishop: ["slayer"],
   Sniper: ["sureStrike"],
   General: ["greatShield"],
