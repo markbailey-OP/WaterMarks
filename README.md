@@ -1,6 +1,6 @@
 # Water Marks
 
-A turn-based tactical grid war in the browser, inspired by Fire Emblem: The Sacred Stones. Up to three sides fight over forts, thrones and caves, recruit and level units, promote them, and try to win by holding most of the map or by taking the enemy throne.
+A turn-based tactical grid war in the browser, inspired by Fire Emblem: The Sacred Stones. Up to four sides fight over forts, thrones and caves, recruit and level units, promote them, and try to win by holding most of the map or by taking the enemy throne.
 
 It is plain HTML, CSS and JavaScript (ES modules) with no build step.
 
@@ -46,7 +46,7 @@ The game works with the on-screen controller, the keyboard, or by tapping the ma
 
 ## The turn
 
-There are three sides: **Blue** (team 1), **Red** (team 2) and **Green** (team 3). They play in that order, and the turn counter goes up each time Blue's side starts again.
+There are up to four sides: **Blue** (team 1), **Red** (team 2), **Green** (team 3) and **Purple** (team 4). They play in that order, and the turn counter goes up each time the order wraps around. A team with no units and no fort, cave or throne is skipped, so a map can use any of the four.
 
 **When a side's phase starts**
 1. If it is a CPU side, its forts and caves choose what to queue.
@@ -67,12 +67,12 @@ A side's controller is chosen when the game is started (see [The CPU](#the-cpu))
 
 ## Winning
 
-A side wins by either:
+Win conditions are set **per map** (`WIN_RULES` in the map file, see [Making maps](#making-maps)). A side wins by either:
 
-- **Holding forts:** a team holds at least **75%** of *all* forts on the map (neutral forts count in the total). Checked every time a fort or throne changes hands.
-- **Taking a throne:** a Lord captures the other team's throne.
+- **Holding forts:** a team holds at least a set percentage of *all* forts **and caves** on the map. The default is **75%**. Neutral forts and caves count in the total. Caves count as held by their owner even though they cannot be captured, and **destroying a cave simply removes it from the total**. With 12 forts and 4 caves the total is 16; if a team holds 10 and one cave is destroyed, the total drops to 15 and the score is 10/15 = 66.7%, which wins on any setting of 66 or lower. It is checked whenever a fort or throne changes hands or a cave is destroyed.
+- **Taking a throne:** a Lord captures another contender's throne. A map can turn this off.
 
-Only **Blue and Red** can win (`CONTENDING_TEAMS` in `victory.js`). Green can lose every fort and the game goes on, and its thrones do not decide the game. After a win the board freezes and you can view the map or return to the main menu.
+Only the map's **contenders** can win (default Blue and Red), and only their thrones count. Other teams can lose everything and the game goes on. A map can set the percentage to `null` to switch fort victory off entirely. After a win the board freezes and you can view the map or return to the main menu.
 
 ---
 
@@ -200,7 +200,7 @@ EXP is shown out of 100. Every 100 EXP is a level. After every fight a unit gets
 - **For a kill:** a large bonus on top, based on the enemy's level and tier. Bosses, thieves, rogues and assassins give extra. A **Silencer** kill multiplies the bonus.
 - **Promoted enemies** count as higher level.
 - **Class power:** trainees 1; clerics, soldiers, troubadours, thieves, priests and dancers 2; everyone else 3. The Demon King is 5.
-- **All EXP is multiplied** (`EXP_MULTIPLIER`).
+- **All EXP is tripled** (`EXP_MULTIPLIER`).
 - A unit that is defeated gets nothing. A defender that cannot counter gets 1 EXP.
 
 A level-up rolls each stat's growth rate. A growth of 130% means a guaranteed +1 plus a 30% chance of a second. Gains stop at the class's stat cap. At the level cap a unit stops gaining EXP.
@@ -270,7 +270,7 @@ Promotion paths (a class can become any of the classes after the arrow):
 | Shaman | Druid, Summoner |
 | Troubadour | Valkyrie, Mage Knight |
 
-Soldier, Brigand, Dancer, Phantom and Manakete do not promote. Necromancer is a promoted-tier class with no class that promotes into it. (yet)
+Soldier, Brigand, Dancer, Phantom and Manakete do not promote. Necromancer is a promoted-tier class with no class that promotes into it.
 
 **Monsters** (see [Monsters](#monsters)):
 
@@ -324,7 +324,7 @@ Each class has its own base stats, growth rates, stat caps and weapon ranks. The
 - **Reinforcements:** at the start of its owner's phase, a fort spawns the unit at the front of its **queue**, if the fort tile is empty and the **population cap (8)** allows it. The unit goes to the back of the queue so units rotate.
 - **Population:** each living unit whose home is that fort counts by weight: trainees 1 (Pupil 1.25), other units 2, promoted units 3, +0.25 for casters, +0.25 for mounted, +0.5 for fliers. Phantoms count 0.
 - **Home fort:** a unit has a home only if it spawned from, or started on, a fort its team owns. Everyone else is "fort 0" and counts toward no population.
-- **Roster:** a fort offers the team's default classes (trainees for Blue and Red, base monsters for Green). If a unit **starts on** a fort or cave, that spawner only offers that unit's class. Promoting or buying a class adds it to the fort's roster.
+- **Roster:** a fort offers the team's default classes: trainees for a **human** team, Revenants and Bonewalkers for a **monster** team. Each map sets which each team is (`TEAM_ROSTERS`). If a unit **starts on** a fort or cave, that spawner only offers that unit's class. Promoting or buying a class adds it to the fort's roster.
 - **Managing a human fort:** select an empty tile that is one of your forts (context menu, **FORT**). You can queue up to **3** units, remove the last, or clear the queue. Each entry shows its class, weight and recorded level.
 - **Recorded levels:** a fort remembers the best level reached by each class from it, and new spawns come out at that level.
 - CPU sides pick their own queues each turn: a random class, weighted toward ones with lower recorded levels for variety.
@@ -338,6 +338,7 @@ Each class has its own base stats, growth rates, stat caps and weapon ranks. The
 
 - Caves spawn units exactly like forts but have **no population cap**, so they spawn forever. They are the monster factories on many maps.
 - They **cannot be captured**. A unit standing on a cave its team does not own gets **DESTROY**, which ends its action and turns the cave into a **Peak**. Neutral caves can be destroyed by anyone.
+- Caves **count toward the fort win condition**: an owned cave counts as held, and a destroyed cave leaves the total.
 - A cave offers the team's default roster, or only the class of the unit that started on it.
 
 ---
@@ -350,7 +351,7 @@ Stand on a **Shop** tile and choose **SHOP**. Completing any purchase or sale en
 
 **Buy**
 - **Items** by category (swords, lances, axes, bows, Anima, Light, Dark, staves, consumables). The price is the item's worth, and your inventory must have room. Gems and unobtainable items are not sold.
-- **Units:** adds a class to the roster of a fort you own (you choose which). Price is **population weight × 1000**. Unit classes that are never buyable: Lords, Dancers, Phantoms, Manakete and every monster. Promoted and many middle-tier classes (Cavalier, Knight, Fighter, Pirate, Mage, Monk, Shaman, Priest, Wyvern Rider, Pegasus Knight, Brigand, Mercenary, Myrmidon, Soldier) only appear **after your team has promoted into them** (or used a Brace).
+- **Units:** adds a class to the roster of a fort you own (you choose which). Price is **population weight × 1000**. A team buys only classes of its own roster type: **human teams buy human classes and monster teams buy monster classes**. Never buyable: Lords, Dancers, Phantoms, Manakete, Gorgon Eggs, Draco Zombies and the Demon King. Promoted and many middle-tier classes (Cavalier, Knight, Fighter, Pirate, Mage, Monk, Shaman, Priest, Wyvern Rider, Pegasus Knight, Brigand, Mercenary, Myrmidon, Soldier) only appear **after your team has promoted into them** (or used a Brace).
 - **Ballistae:** upgrade or reload a ballista that one of your units is standing on (see [Ballistae](#ballistae)).
 
 **Sell**
@@ -547,7 +548,32 @@ export const STARTING_UNITS = [
 // Optional.
 export const BALLISTAS = [{ x: 3, y: 2, type: "Iron Ballista" }];
 export const HUMAN_TEAMS = [1, 2];     // teams a player may control
+
+// What each team reinforces with by default, and what its shop sells:
+// "human" (trainee classes) or "monster" (monster classes). Any mix of the
+// four teams works. Teams you leave out keep the default.
+export const TEAM_ROSTERS = { 1: "human", 2: "monster" };
+
+// How the map is won. Every field is optional.
+export const WIN_RULES = {
+  fortPercent: 66,         // % of all forts and caves to hold. null = off
+  throneCapture: true,     // capturing a contender's throne wins
+  contenders: [1, 2]       // the teams that can win
+};
 ```
+
+Defaults: `TEAM_ROSTERS` is human for teams 1 and 2 and monster for teams 3 and 4; `WIN_RULES` is 75%, throne capture on, contenders `[1, 2]`.
+
+**Example setups**
+
+| Game | `TEAM_ROSTERS` | `WIN_RULES.contenders` | `HUMAN_TEAMS` |
+|---|---|---|---|
+| Four human armies | all `"human"` | `[1, 2, 3, 4]` | `[1, 2, 3, 4]` |
+| Humans against monsters | 1 `"human"`, 2 `"monster"` | `[1, 2]` | `[1, 2]` |
+| Four monster hordes | all `"monster"` | `[1, 2, 3, 4]` | `[1, 2, 3, 4]` |
+| Two humans and a monster horde | 1, 2 `"human"`, 3 `"monster"` | `[1, 2]` | `[1, 2, 3]` |
+
+The roster type only decides reinforcements, captured-fort rosters and the shop. Which units a team *starts* with comes from `STARTING_UNITS`, so a map can freely mix classes.
 
 **Layout symbols**
 
@@ -581,7 +607,7 @@ Most balance numbers are constants near the top of their files.
 | Setting | File | Default |
 |---|---|---|
 | `LVL_FACTOR` (rolls per level, level scale) | `exp.js` | 2 |
-| `FORT_WIN_PERCENT`, `CONTENDING_TEAMS` | `victory.js` | 75, [1, 2] |
+| Win percentage, throne capture, contenders, team rosters | each map file (`WIN_RULES`, `TEAM_ROSTERS`) | 75%, on, [1, 2] |
 | Starting gold | `gameState.js` (`teamGold`) | 1000 |
 | `MAX_INVENTORY` | `inventory.js` | 5 |
 | Fort `popCap`, `MAX_QUEUE` | `terrain.js`, `strongholds.js` | 8, 3 |
