@@ -36,7 +36,7 @@ const TRAINEES = ["Recruit", "Pupil", "Journeyman", "Trainee"];
 
 // Base (unpromoted) monster classes CPU monster armies can reinforce.
 // Promoted forms are added per-fort via addPromotedClassToFort when a unit promotes.
-const BASE_MONSTERS = ["Revenant", "Bonewalker"];
+const BASE_MONSTERS = ["Revenant", "Bonewalker", "Initiate"];
 
 // Default reinforcement pool by roster type (TEAM_ROSTERS in the map).
 const ROSTER_POOLS = { human: TRAINEES, monster: BASE_MONSTERS };
@@ -216,7 +216,7 @@ function computeWeight(unit) {
   if (unit.className === "Phantom") return 0;
 
     if (getClassTier(unit.className) === 0) {
-    return unit.className === "Pupil" ? 1.25 : 1;
+    return unit.mag != null ? 1.25 : 1;
   }
 
   let weight = isPromoted(unit) ? 3 : 2;

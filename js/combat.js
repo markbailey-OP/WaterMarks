@@ -193,7 +193,8 @@ const DRAGON_CLASSES = new Set(["Manakete", "WyvernRider", "WyvernLord", "Wyvern
 const MONSTER_CLASSES = new Set([
   "Bonewalker", "Wight", "Bael", "ElderBael", "MautheDoog", "Gwyllgi",
   "Tarvos", "Maelduin", "Mogall", "ArchMogall", "Gargoyle", "Deathgoyle",
-  "Gorgon", "GorgonEgg", "Cyclops", "DracoZombie", "DemonKing", "Entombed", "Revenant"
+  "Gorgon", "GorgonEgg", "Cyclops", "DracoZombie", "DemonKing", "Entombed", 
+  "Revenant", "Initiate", "Medium", "Necromancer"
 ]);
 
 export function isMonster(unit) {

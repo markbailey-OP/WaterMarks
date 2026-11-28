@@ -232,7 +232,7 @@ export const CLASS_DATA = {
     code: "AS",
     stat: "str",
     base: [16, 3, 1, 9, 2, 0, 6, 8],
-    growth: [50, 5, 45, 40, 40, 5, 20],
+    growth: [50, 5, 45, 40, 40, 10, 20],
     caps: { hp: 60, str: 20, skl: 30, spd: 30,
       lck: 30, def: 20, res: 20, move: 15, con: 20 },
     ranks: { sword: "D" }
@@ -242,7 +242,7 @@ export const CLASS_DATA = {
     code: "TH",
     stat: "str",
     base: [16, 3, 1, 9, 2, 0, 6, 6],
-    growth: [50, 5, 45, 40, 40, 5, 20],
+    growth: [50, 5, 45, 40, 50, 5, 10],
     ranks: { sword: "E" },
     promotionGains: {
       Assassin: { hp: 3, str: 1, skl: 0, spd: 0,
@@ -256,7 +256,7 @@ export const CLASS_DATA = {
     code: "RO",
     stat: "str",
     base: [16, 3, 1, 9, 2, 0, 6, 7],
-    growth: [50, 10, 45, 35, 40, 5, 20],
+    growth: [50, 10, 45, 35, 50, 10, 20],
     caps: { hp: 60, str: 20, skl: 30, spd: 30,
       lck: 30, def: 20, res: 20, move: 15, con: 20 },
     ranks: { sword: "E" }
@@ -431,7 +431,7 @@ export const CLASS_DATA = {
     code: "SH",
     stat: "mag",
     base: [16, 2, 1, 2, 2, 4, 5, 7],
-    growth: [50, 50, 32, 30, 20, 10, 30],
+    growth: [50, 50, 35, 30, 20, 10, 30],
     terrFactor: "mage",
     ranks: { dark: "D" },
     promotionGains: {
@@ -439,6 +439,20 @@ export const CLASS_DATA = {
         def: 2, res: 2, con: 1, move: 1 },
       Summoner: { hp: 3, mag: 0, skl: 1, spd: 3,
         def: 1, res: 3, con: 1, move: 1 }
+    }
+  },
+  
+  Medium: {
+    code: "MI",
+    stat: "mag",
+    base: [16, 2, 1, 2, 2, 4, 5, 7],
+    growth: [50, 60, 40, 20, 20, 10, 25],
+    terrFactor: "mage",
+    ranks: { dark: "D", staff: "E" },
+    promotionGains: {
+      Necromancer: { 
+        hp: 3, mag: 4, skl: 2, spd: 2, 
+        def: 2, res: 3, con: 1, move: 1 }
     }
   },
 
@@ -518,6 +532,21 @@ export const CLASS_DATA = {
       },
       Monk: {
         hp: 1, mag: 1, skl: 1, spd: 2,
+        def: 1, res: 2, con: 2, move: 1
+      }
+    }
+  },
+  
+  Initiate: {
+    code: "IN",
+    stat: "mag",
+    base: [13, 1, 0, 1, 0, 2, 4, 5],
+    growth: [55, 60, 40, 35, 35, 15, 25],
+    terrFactor: "mage",
+    ranks: { dark: "E" },
+    promotionGains: {
+      Medium: {
+        hp: 1, mag: 2, skl: 0, spd: 1,
         def: 1, res: 2, con: 2, move: 1
       }
     }
@@ -655,13 +684,13 @@ export const CLASS_DATA = {
     code: "NE",
     stat: "mag",
     base: [18, 9, 4, 5, 3, 8, 6, 7],
-    growth: [45, 55, 30, 25, 20, 10, 35],
+    growth: [55, 65, 30, 25, 25, 10, 35],
     terrFactor: "mage",
     caps: { hp: 60, mag: 30, skl: 25, spd: 25,
-      lck: 30, def: 30, res: 30, move: 15, con: 25 },
-    ranks: { dark: "S", staff: "S" }
+      lck: 30, def: 20, res: 23, move: 15, con: 25 },
+    ranks: { dark: "C", staff: "D" }
   },
-
+  
   Phantom: {
     code: "PH",
     stat: "str",
@@ -1034,6 +1063,8 @@ export const Summoner = createUnitClass("Summoner", CLASS_DATA.Summoner);
 export const Trainee = createUnitClass("Trainee", CLASS_DATA.Trainee);
 export const Recruit = createUnitClass("Recruit", CLASS_DATA.Recruit);
 export const Pupil = createUnitClass("Pupil", CLASS_DATA.Pupil);
+export const Initiate = createUnitClass("Initiate", CLASS_DATA.Initiate);
+export const Medium = createUnitClass("Medium", CLASS_DATA.Medium);
 export const Journeyman = createUnitClass("Journeyman", CLASS_DATA.Journeyman);
 export const Fighter = createUnitClass("Fighter", CLASS_DATA.Fighter);
 export const Warrior = createUnitClass("Warrior", CLASS_DATA.Warrior);

@@ -27,6 +27,7 @@ const CLASS_POWER = {
   Recruit: 1,
   Pupil: 1,
   Trainee: 1,
+  Initiate: 1,
   Civilian: 1,
   Pontifex: 1,
   Entombed: 1,
@@ -71,6 +72,7 @@ const TRAINEE_CLASSES = new Set([
   "Pupil",
   "Journeyman",
   "Trainee",
+  "Initiate",
   "Revenant",
   "Bonewalker"
 ]);
