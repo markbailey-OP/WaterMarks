@@ -41,7 +41,7 @@ const LEGEND = { x: 53, y: 7382, step: 8, rowStep: 15, count: 16 };
 const PALETTE_ROWS = { ally: 0, enemy: 1, neutral: 2, used: 3, arena: 4 };
 
 // Team number -> palette row.
-const TEAM_PALETTE = { 1: "ally", 2: "enemy", 3: "neutral", 4: "purple" };
+const TEAM_PALETTE = { 1: "ally", 2: "enemy", 3: "neutral", 4: "arena" };
 
 // ==========================================
 // CLASS -> SHEET NAME
@@ -242,9 +242,6 @@ export function loadSprites() {
       for (const [name, row] of Object.entries(PALETTE_ROWS)) {
         palettes[name] = readPalette(row);
       }
-      // Team 4 has no row on the sheet: the ally colours with red and green
-  	// swapped into purple.
-  	palettes.purple = palettes.ally.map(([r, g, b]) => [b, r, b]);
 
       ready = true;
       checkMapping();
